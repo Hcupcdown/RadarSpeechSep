@@ -10,6 +10,8 @@ from utils.metric import *
 
 
 class FreSepaTester:
+
+
     def __init__(self, model, dataloader, n_fft, hop, args):
         
         self.args = args
@@ -182,4 +184,3 @@ class FreSepaTester:
                 self.save_wav(f"{i}", est_audio)
         print("total loss: ", total_loss/(i+1))
         print("total sisdr: ", total_sisdr/(i+1))
-            

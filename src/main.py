@@ -7,7 +7,7 @@ from app.sepa_test import FreSepaTester
 from app.sepa_train import *
 from config import *
 from data.dataset import *
-from model import RadarSpeechSepNet, TSCNet
+from model import CleanSpeechSepNet, RadarSpeechSepNet, TSCNet
 from utils import *
 
 

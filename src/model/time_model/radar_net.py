@@ -167,11 +167,12 @@ class RadarSpeechSepNet(nn.Module):
                                                padding=1),
                                      nn.ReLU())
 
-        self.out_conv = nn.Conv1d(hidden,
-                                  in_channels,
-                                  kernel_size=3,
-                                  stride=1,
-                                  padding=1)
+        self.out_conv = nn.Sequential(nn.Conv1d(hidden,
+                                                in_channels,
+                                                kernel_size=3,
+                                                stride=1,
+                                                padding=1),
+                                      nn.ReLU())
 
         self.radar_net = RadarNet(in_channels=513,
                                   embed_channels=32,
@@ -213,7 +214,7 @@ class RadarSpeechSepNet(nn.Module):
         self.encoders = nn.ModuleList(encoders)
         self.decoders = nn.ModuleList(decoders)
 
-        for i in range(3):
+        for i in range(22):
             setattr(self,
                     f"conformer_{i}",
                     ConformerBlock(dim=in_channels,
@@ -242,12 +243,12 @@ class RadarSpeechSepNet(nn.Module):
             x = decoder(x)
             x  = x + skip
 
-        x = self.out_conv(x) 
+        x = self.out_conv(x)
         x = x[..., :length]
         
         return x
     
-    def forward(self, sound, radar):
+    def forward(self, x, radar):
         """
         Forward pass of the radar_net model.
 
@@ -258,7 +259,7 @@ class RadarSpeechSepNet(nn.Module):
         Returns:
             torch.Tensor: Sound tensor with shape [batch_size*speaker_num, 1, T].
         """
-        sound, length, skips = self.encode(sound)
+        sound, length, skips = self.encode(x)
         
         # generate radar mask
         radar_mask = self.radar_net(radar)
@@ -273,13 +274,15 @@ class RadarSpeechSepNet(nn.Module):
         
         # conformer
         sound = sound.permute(0, 2, 1).contiguous()
-        for i in range(3):
+        for i in range(22):
             sound = getattr(self, f"conformer_{i}")(sound)
         sound = sound.permute(0, 2, 1).contiguous()
 
         # decode
-        y = self.decode(sound, length, skips)
-
+        sound_mask = self.decode(sound, length, skips)
+        x = x.unsqueeze(dim=1)
+        x = x.repeat_interleave(sound_mask.shape[0]//x.shape[0], dim=0)
+        y = x * sound_mask
         return y
     
     def cal_padding(self, length):
@@ -291,6 +294,169 @@ class RadarSpeechSepNet(nn.Module):
             length = (length - 1) * self.stride + self.kernel_size
         length = int(math.ceil(length))
         self.length =  int(length)
+
+
+class CleanSpeechSepNet(nn.Module):
+
+
+    def __init__(self, 
+                 in_channels:int=1, 
+                 out_channels:int=1,
+                 hidden:int=32,
+                 depth:int=4,
+                 kernel_size:int=8,
+                 stride:int=4,
+                 growth:int=2,
+                 device:str="cuda:0"):
+        super().__init__()
+
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.depth = depth
+        self.device = device
+        self.length = None
+
+        self.in_conv = nn.Sequential(nn.Conv1d(in_channels,
+                                               hidden,
+                                               kernel_size=3,
+                                               stride=1,
+                                               padding=1),
+                                     nn.ReLU())
+
+        self.out_conv = nn.Sequential(nn.Conv1d(hidden,
+                                                in_channels,
+                                                kernel_size=3,
+                                                stride=1,
+                                                padding=1),
+                                      nn.ReLU())
+        
+        self.clean_in_conv = nn.Sequential(nn.Conv1d(in_channels,
+                                                        hidden,
+                                                        kernel_size=3,
+                                                        stride=1,
+                                                        padding=1),
+                                            nn.ReLU())
+        
+        
+        in_channels = in_channels*hidden
+        out_channels = out_channels*growth
+        
+        encoders = []
+        clean_encoders = []
+        decoders = []
+        for layer in range(depth):
+            encoders.append(Encoder(in_channels=in_channels,
+                                    out_channels=out_channels*hidden,
+                                    kernel_size=kernel_size,
+                                    stride=stride,
+                                    layer=layer,
+                                    depth=depth))
+            clean_encoders.append(Encoder(in_channels=in_channels,
+                                            out_channels=out_channels*hidden,
+                                            kernel_size=kernel_size,
+                                            stride=stride,
+                                            layer=layer,
+                                            depth=depth))
+            
+            decoders.append(Decoder(in_channels=out_channels*hidden,
+                                    out_channels=in_channels,
+                                    kernel_size=kernel_size,
+                                    stride=stride,
+                                    layer=layer,
+                                    depth=depth))
+        
+            in_channels  = hidden*(2**(layer+1))
+            out_channels *= growth
+        # end for
+
+        self.fusion_net = nn.Sequential(nn.Conv1d(in_channels=2*in_channels,
+                                                  out_channels=in_channels,
+                                                  kernel_size=3,
+                                                  stride=1,
+                                                  padding=1))
+        decoders.reverse()
+        self.encoders = nn.ModuleList(encoders)
+        self.clean_encoders = nn.ModuleList(clean_encoders)
+        self.decoders = nn.ModuleList(decoders)
+
+        for i in range(22):
+            setattr(self,
+                    f"conformer_{i}",
+                    ConformerBlock(dim=in_channels,
+                                   ff_mult=4,
+                                   ff_dropout=0.1,
+                                   conv_dropout=0.1))
+
+    def encode(self, x, clean):
+        x = x.unsqueeze(dim = 1)
+        clean = rearrange(clean, "b c t -> (b c) t")
+        clean = clean.unsqueeze(dim = 1)
+        length = x.shape[-1]
+        self.cal_padding(length)
+        x = F.pad(x, (0, self.length - length))
+        x = self.in_conv(x)
+        clean = F.pad(clean, (0, self.length - length))
+        clean = self.clean_in_conv(clean)
+
+        skips = []
+        for encoder, clean_encoder in zip(self.encoders, self.clean_encoders):
+            skips.append(x)
+            x = encoder(x)
+            clean = clean_encoder(clean)
+        
+        x = x.repeat_interleave(clean.shape[0]//x.shape[0], dim=0)
+        masked_sound = x * clean
+        x = self.fusion_net(torch.cat((masked_sound, x), dim=1))
+        return x, length, skips
+    
+    def decode(self, x, length, skips = None):
+        for decoder in self.decoders:
+            skip = skips.pop()
+            skip = skip.repeat_interleave(x.shape[0]//skip.shape[0], dim=0)
+            x = decoder(x)
+            x  = x + skip
+
+        x = self.out_conv(x)
+        x = x[..., :length]
+        
+        return x
+    
+    def forward(self, x, clean):
+        """
+        Forward pass of the radar_net model.
+
+        Args:
+            sound (torch.Tensor): Sound tensor with shape [b, 1, T].
+            radar (torch.Tensor): Radar tensor with shape [b, speaker_num, fre_num, time_len].
+
+        Returns:
+            torch.Tensor: Sound tensor with shape [batch_size*speaker_num, 1, T].
+        """
+        sound, length, skips = self.encode(x, clean)
+        
+        # conformer
+        sound = sound.permute(0, 2, 1).contiguous()
+        for i in range(22):
+            sound = getattr(self, f"conformer_{i}")(sound) + sound
+        sound = sound.permute(0, 2, 1).contiguous()
+
+        # decode
+        sound_mask = self.decode(sound, length, skips)
+        x = x.unsqueeze(dim=1)
+        x = x.repeat_interleave(sound_mask.shape[0]//x.shape[0], dim=0)
+        y = x * sound_mask
+        return y
+    
+    def cal_padding(self, length):
+        length = math.ceil(length)
+        for idx in range(self.depth):
+            length = math.ceil((length - self.kernel_size) / self.stride) + 1
+            length = max(length, 1)
+        for idx in range(self.depth):
+            length = (length - 1) * self.stride + self.kernel_size
+        length = int(math.ceil(length))
+        self.length =  int(length)
+
 
 if __name__=='__main__':
     testnet = RadarNet(in_channels=500,

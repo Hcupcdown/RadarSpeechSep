@@ -95,8 +95,8 @@ class Trainer():
         for i, batch_data in enumerate(tqdm(data_loader)):
             loss, est_audio = self.run_batch(batch_data)
             total_loss += loss["loss"].item()
-
         clean_audio = batch_data["clean"][0]
+        est_audio = est_audio.squeeze(0)
         est_audio_dict = {f"speaker{i}":est_audio[i] for i in range(clean_audio.shape[0])}
         clean_audio_dict = {f"speaker{i}":clean_audio[i] for i in range(clean_audio.shape[0])}
 

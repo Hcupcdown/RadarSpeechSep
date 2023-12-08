@@ -9,7 +9,7 @@ def get_config():
     parser.add_argument('action', type=str, default='train', help='Action') # train / test
 
     # dataset
-    parser.add_argument('--train', type=str, default=r'D:\radar_sound_dataset\speech_separation\train', help='Train path')
+    parser.add_argument('--train', type=str, default=r'D:\radar_sound_dataset\speech_separation\val', help='Train path')
     parser.add_argument('--val', type=str, default=r'D:\radar_sound_dataset\speech_separation\test', help='Val path')
     parser.add_argument('--test', type=str, default=r'D:\radar_sound_dataset\speech_separation\test', help='Test path')
     parser.add_argument('--sample_rate', type=int, default=16000, help='Sample rate')
