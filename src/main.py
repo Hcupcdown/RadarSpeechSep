@@ -22,9 +22,21 @@ def main():
 
     if args.action == 'train':
 
-        train_dataset = SeparTrainDataset(args.dataset['train'], segment=args.setting['segment'], sample_rate= args.setting['sample_rate'])
-        train_loader  = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_worker, collate_fn=collate_fn)   
-        val_dataset   = SeparTestDataset(args.dataset['val'])
+        train_dataset = SeparDataset(args.dataset['train'],
+                                          segment=args.setting['segment'],
+                                          sample_rate= args.setting['sample_rate'],
+                                          dynamic_mix=False)
+
+        train_loader  = DataLoader(train_dataset,
+                                   batch_size=args.batch_size,
+                                   shuffle=True,
+                                   num_workers=args.num_worker,
+                                   collate_fn=collate_fn)
+         
+        val_dataset   = SeparDataset(args.dataset['val'],
+                                     sample_rate= args.setting['sample_rate'],
+                                     dynamic_mix=False)
+        
         val_loader    = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=args.num_worker, collate_fn=collate_fn)
         data_loader   = {'train':train_loader, 'val':val_loader}
         # model = TSCNet(num_channel=16, num_features=513, clean_mask = False)
@@ -33,7 +45,7 @@ def main():
         trainer = TimeRadarSepaTrainer(model, data_loader, args)
         trainer.train()
     else:
-        val_dataset   = SeparTestDataset(args.dataset['val'])
+        val_dataset   = SeparDataset(args.dataset['val'])
         val_loader    = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=args.num_worker, collate_fn=collate_fn)
         model  = TSCNet(num_channel=16, num_features=513, clean_mask = False)
         model.load_state_dict(torch.load("log/23-12-06-15-27-13/model/best_train.pth")["state_dict"])
