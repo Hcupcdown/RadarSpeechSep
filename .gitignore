@@ -1,4 +1,5 @@
 /.vscode
 /log
 /result
-/src
+__pycache__/
+.gitignore
