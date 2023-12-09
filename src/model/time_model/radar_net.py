@@ -236,16 +236,13 @@ class RadarSpeechSepNet(nn.Module):
         
         return x, length, skips
     
-    def decode(self, x, length, skips = None):
+    def decode(self, x, skips = None):
         for decoder in self.decoders:
             skip = skips.pop()
             skip = skip.repeat_interleave(x.shape[0]//skip.shape[0], dim=0)
             x = decoder(x)
             x  = x + skip
 
-        x = self.out_conv(x)
-        x = x[..., :length]
-        
         return x
     
     def forward(self, x, radar):
@@ -279,10 +276,14 @@ class RadarSpeechSepNet(nn.Module):
         sound = sound.permute(0, 2, 1).contiguous()
 
         # decode
-        sound_mask = self.decode(sound, length, skips)
+        sound_mask = self.decode(sound, skips)
         x = x.unsqueeze(dim=1)
         x = x.repeat_interleave(sound_mask.shape[0]//x.shape[0], dim=0)
+        sound_mask = sound_mask[...,:x.shape[-1]]
         y = x * sound_mask
+
+        y = self.out_conv(y)
+        y = y[..., :length]
         return y
     
     def cal_padding(self, length):
