@@ -1,9 +1,8 @@
 import torch
-from torch import nn, einsum
 import torch.nn.functional as F
-
 from einops import rearrange
 from einops.layers.torch import Rearrange
+from torch import einsum, nn
 
 # source: https://github.com/lucidrains/conformer/blob/master/conformer/conformer.py
 # helper functions
@@ -216,6 +215,55 @@ class ConformerBlock(nn.Module):
     def forward(self, x, mask=None):
         x = self.ff1(x) + x
         x = self.attn(x, mask=mask) + x
+        x = self.conv(x) + x
+        x = self.ff2(x) + x
+        x = self.post_norm(x)
+        return x
+
+class CrossConformerBlock(nn.Module):
+
+    def __init__(
+        self,
+        *,
+        dim,
+        dim_head=64,
+        heads=8,
+        ff_mult=4,
+        conv_expansion_factor=2,
+        conv_kernel_size=31,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        conv_dropout=0.0
+    ):
+        super().__init__()
+        self.ff1_x = FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)
+        self.ff1_c = FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)
+        self.ln1_x = nn.LayerNorm(dim)
+        self.ln1_c = nn.LayerNorm(dim)
+        self.attn = Attention(
+            dim=dim, dim_head=dim_head, heads=heads, dropout=attn_dropout
+        )
+        self.conv = ConformerConvModule(
+            dim=dim,
+            causal=False,
+            expansion_factor=conv_expansion_factor,
+            kernel_size=conv_kernel_size,
+            dropout=conv_dropout,
+        )
+        self.ff2 = FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)
+
+        self.ff1_x = Scale(0.5, PreNorm(dim, self.ff1_x))
+        self.ff1_c = Scale(0.5, PreNorm(dim, self.ff1_c))
+        self.ff2 = Scale(0.5, PreNorm(dim, self.ff2))
+
+        self.post_norm = nn.LayerNorm(dim)
+
+    def forward(self, x, context,  mask=None):
+        x = self.ff1_x(x) + x
+        context = self.ff1_c(context) + context
+        x = self.ln1_x(x)
+        context = self.ln1_c(context)
+        x = self.attn(x, context=context, mask=mask) + x
         x = self.conv(x) + x
         x = self.ff2(x) + x
         x = self.post_norm(x)

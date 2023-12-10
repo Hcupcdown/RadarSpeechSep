@@ -5,7 +5,7 @@ import torch.nn as nn
 from einops import rearrange
 from torch.nn import functional as F
 
-from .conformer import ConformerBlock
+from .conformer import ConformerBlock, CrossConformerBlock
 
 
 class DilatedDenseNet(nn.Module):
@@ -210,6 +210,33 @@ class RadarNet(nn.Module):
         x = torch.mean(x, dim=-1, keepdim=True)
         return x
 
+class CrossFusion(nn.Module):
+    def __init__(self,
+                 dim,
+                 dim_head,
+                 heads=4,
+                 conv_kernel_size=31,
+                 attn_dropout=0.2,
+                 ff_dropout=0.2,) -> None:
+        super().__init__()
+        self.fusion_t = CrossConformerBlock(
+            dim=dim,
+            dim_head=dim_head,
+            heads=heads,
+            conv_kernel_size=conv_kernel_size,
+            attn_dropout=attn_dropout,
+            ff_dropout=ff_dropout,
+        )
+    
+    def forward(self, x, context):
+        b, c, t, f = x.size()
+        x_t = x.permute(0, 3, 2, 1).contiguous().view(b * f, t, c)
+        context_t = context.permute(0, 3, 2, 1).contiguous().view(b * f, t, c)
+        x_t = self.fusion_t(x_t, context_t) + x_t
+        x_fusion = x_t.view(b, f, t, c).permute(0, 3, 2, 1)
+        return x_fusion
+
+
 class TSCNet(nn.Module):
     def __init__(self,
                  num_channel:int=64,
@@ -222,10 +249,13 @@ class TSCNet(nn.Module):
 
         self.radar_net = RadarNet(in_channel=1, channels=num_channel//4)
 
-        self.fusion = nn.Sequential(
-            nn.Conv2d(2*num_channel, num_channel, (3, 3), (1, 1), padding=(1,1)),
-            nn.InstanceNorm2d(num_channel, affine=True),
-            nn.PReLU(num_channel),
+        self.fusion = CrossFusion(
+            dim=num_channel,
+            dim_head=num_channel // 4,
+            heads=4,
+            conv_kernel_size=31,
+            attn_dropout=0.2,
+            ff_dropout=0.2,
         )
 
         self.TSCB = nn.Sequential(TSCB(num_channel=num_channel),
@@ -252,9 +282,9 @@ class TSCNet(nn.Module):
         
         out_1 = out_1.repeat_interleave(radar.shape[0]//out_1.shape[0],
                                         dim=0)
-
-        out_2 = torch.cat([out_1, out_1*radar], dim=1)
-        out_2 = self.fusion(out_2)
+        
+        out_2 = self.fusion(out_1, out_1*radar)
+        
         out_2 = self.TSCB(out_2)
 
         mask = self.mask_decoder(out_2)
