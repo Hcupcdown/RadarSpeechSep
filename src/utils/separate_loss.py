@@ -10,30 +10,31 @@ class SeparateLoss:
         self.permutations = [torch.tensor(perm, device=device) 
                              for perm in itertools.permutations(range(mix_num))]
     
-    @staticmethod
-    def gen_loss_fn(dim):
-        dim = tuple(range(1, dim))
-        return lambda x, y:torch.mean(torch.abs(x-y), dim=dim)
 
-    def cal_seploss(self, clean_list:list, est_list:list, loss_weight_list:list):
+    def cal_seploss(self, clean:torch.tensor, est:torch.tensor, loss_fn):
+        """
+        Calculate the separation loss between clean and estimated tensors.
+
+        Args:
+            clean (torch.tensor): The clean tensor with shape [B,C,T].
+            est (torch.tensor): The estimated tensor with shape [B, C, T].
+            loss_fn (function): The loss function to calculate the loss.
+
+        Returns:
+            torch.tensor: The mean separation loss.
+        """
         losses = []
         for perm in self.permutations:
             loss = 0
-            for i in range(len(clean_list)):
-                clean = clean_list[i]
-                est = est_list[i]
-                w = loss_weight_list[i]
-
-                loss_fn = self.gen_loss_fn(clean.dim())
-                clean_perm = clean.index_select(1, perm)
-                loss += w * loss_fn(clean_perm, est)
-            losses.append(loss)
+            clean_perm = clean.index_select(1, perm)
+            loss = loss_fn(clean_perm, est)
+            losses.append(torch.mean(loss))
         losses = torch.stack(losses, dim=-1)
         loss, _ = torch.min(losses, dim=-1)
-        return torch.mean(loss)
+        return loss
     
-    def __call__(self, clean_list:list, est_list:list, loss_weight_list:list) -> Any:
-        return self.cal_seploss(clean_list, est_list, loss_weight_list)
+    def __call__(self, **kwargs) -> Any:
+        return self.cal_seploss(**kwargs)
     
 
 if __name__ == "__main__":
