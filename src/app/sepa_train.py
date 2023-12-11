@@ -60,12 +60,7 @@ class FreTrainer(Trainer):
         time_loss = torch.mean(torch.abs(est_audio[...,:min_len] - clean_audio[...,:min_len]))
         
         snr_loss = torch.mean(sisnr(est_audio[...,:min_len], clean_audio[...,:min_len]))
-        loss = (
-            self.loss_weights[0] * loss_ri
-            + self.loss_weights[1] * loss_mag
-            + self.loss_weights[3] * time_loss
-            - self.loss_weights[2] * snr_loss
-        )
+        loss = - snr_loss
 
         return {
             "loss":loss,
@@ -125,12 +120,14 @@ class TimeTrainer(Trainer):
         clean_audio = rearrange(clean_audio, "b c t -> (b c) t")
         mse_loss = F.mse_loss(est_audio, clean_audio)
         stft_loss = self.stft_loss(est_audio, clean_audio)
-        loss = mse_loss + stft_loss
+        snr_loss = torch.mean(sisnr(est_audio, clean_audio))
+        loss =  -snr_loss
 
         return {
             "loss":loss,
             "mse_loss":mse_loss,
-            "stft_loss":stft_loss
+            "stft_loss":stft_loss,
+            "snr_loss":snr_loss
         }
 
 class TimeRadarSepaTrainer(TimeTrainer):
