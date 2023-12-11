@@ -80,6 +80,9 @@ class Trainer():
             
             self.optimizer.zero_grad()
             loss["loss"].backward()
+            nn.utils.clip_grad_norm_(self.model.parameters(),
+                                     max_norm=5,
+                                     norm_type=2)
             self.optimizer.step()
             self.scheduler.step()
             self.log.add_scalar(cate="train",
