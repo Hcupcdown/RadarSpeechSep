@@ -300,6 +300,7 @@ class MossFormer(nn.Module):
         mask = self.out_point_wise_conv(x_split)
         x_in = x_in.repeat_interleave(self.speaker_num, dim = 0)
         split_sound =  self.out_conv(mask * x_in)[...,:in_len]
+        split_sound = rearrange(split_sound, '(b c) n s -> b (c n) s', c=self.speaker_num)
         return split_sound
 
 

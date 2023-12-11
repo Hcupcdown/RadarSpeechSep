@@ -7,7 +7,7 @@ from app.sepa_test import FreSepaTester
 from app.sepa_train import *
 from config import *
 from data.dataset import *
-from model import CleanSpeechSepNet, RadarSpeechSepNet, TSCNet
+from model import CleanSpeechSepNet, MossFormer, RadarSpeechSepNet, TSCNet
 from utils import *
 
 
@@ -41,8 +41,8 @@ def main():
         data_loader   = {'train':train_loader, 'val':val_loader}
         # model = TSCNet(num_channel=16, num_features=513, clean_mask = False)
         # trainer = FreRadarSepaTrainer(model, data_loader, n_fft=1024, hop=256, loss_weights=[0.1,0.9,0.9,0.2], args = args)
-        model = RadarSpeechSepNet()
-        trainer = TimeRadarSepaTrainer(model, data_loader, args)
+        model = MossFormer(speaker_num=2)
+        trainer = TimeSepaTrainer(model, data_loader, args)
         trainer.train()
     else:
         val_dataset   = SeparDataset(args.dataset['val'])
