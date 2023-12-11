@@ -1,4 +1,5 @@
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from data.dataset import *
@@ -13,10 +14,12 @@ class Trainer():
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), 
                                           lr=args.learning_rate)
-        self.scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
-                                                             max_lr=1e-3, 
-                                                             steps_per_epoch=len(data['train']),
-                                                             epochs=args.epoch)
+        self.scheduler = ReduceLROnPlateau(self.optimizer, 
+                                                  mode='min',
+                                                  factor=0.5,
+                                                  patience=2,
+                                                  verbose=True,
+                                                  min_lr=1e-8)
 
         self.train_loader = data['train']
         self.val_loader = data['val']
@@ -84,12 +87,11 @@ class Trainer():
                                      max_norm=5,
                                      norm_type=2)
             self.optimizer.step()
-            self.scheduler.step()
             self.log.add_scalar(cate="train",
                                 global_step = epoch*len(data_loader) + i,
                                 **loss
                                 )
-
+        self.scheduler.step(total_loss/(i+1))
         return total_loss/(i+1)
     
     def test_epoch(self, data_loader, epoch):

@@ -17,7 +17,7 @@ def get_config():
 
     #basic 
     parser.add_argument('--model_path', type=str, default='log/23-12-06-15-27-13/model/best_train.pth', help='Model path')
-    parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate')
+    parser.add_argument('--learning_rate', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--epoch', type=int, default=300, help='Epoch')
     parser.add_argument('--batch_size', type=int, default=2, help='Batch size')
     parser.add_argument('--checkpoint', type=bool, default=False, help='Checkpoint') # If you want to train with pre-trained, or resume set True
