@@ -1,7 +1,9 @@
 import os
 import warnings
 
+from thop import profile
 from torch.utils.data import DataLoader
+from torchinfo import summary
 
 from app.sepa_test import FreSepaTester
 from app.sepa_train import *
@@ -42,6 +44,11 @@ def main():
         # model = TSCNet(num_channel=16, num_features=513, clean_mask = False)
         # trainer = FreRadarSepaTrainer(model, data_loader, n_fft=1024, hop=256, loss_weights=[0.1,0.9,0.9,0.2], args = args)
         model = MossFormer(speaker_num=2)
+        input = torch.randn(1, 1, 32000)
+        Flops, Params = profile(model, inputs=(input, ))
+
+        print(f"Flops: {Flops/1e9}G", f"Params: {Params/1e6}M")
+
         trainer = TimeSepaTrainer(model, data_loader, args)
         trainer.train()
     else:
