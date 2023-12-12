@@ -15,11 +15,11 @@ class Trainer():
         self.optimizer = torch.optim.Adam(self.model.parameters(), 
                                           lr=args.learning_rate)
         self.scheduler = ReduceLROnPlateau(self.optimizer, 
-                                                  mode='min',
-                                                  factor=0.5,
-                                                  patience=2,
-                                                  verbose=True,
-                                                  min_lr=1e-8)
+                                           mode='min',
+                                           factor=0.5,
+                                           patience=2,
+                                           verbose=True,
+                                           min_lr=1e-8)
 
         self.train_loader = data['train']
         self.val_loader = data['val']

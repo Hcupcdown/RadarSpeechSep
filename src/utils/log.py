@@ -24,7 +24,7 @@ class Log():
 
     def to_spec(self, x):
 
-        plt.specgram(x.detach().cpu().numpy(), NFFT=512, Fs=16000, noverlap=256)
+        plt.specgram(x.detach().cpu().numpy(), NFFT=512, Fs=8000, noverlap=256)
         plt.savefig(os.path.join(self.cache_dir, "spec.png"), dpi=300)
         plt.close()
 
@@ -68,7 +68,7 @@ class Log():
             self.writer.add_audio(tag=f"{cate}/{k}_audio",
                                   snd_tensor=v,
                                   global_step=global_step,
-                                  sample_rate=16000)
+                                  sample_rate=8000)
             if add_spec:
                 spec_imags[f"{k}_spec"] = self.to_spec(v[0] if v.dim() > 1 else v)
 

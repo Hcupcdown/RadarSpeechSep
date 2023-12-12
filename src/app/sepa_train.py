@@ -149,8 +149,7 @@ class TimeRadarSepaTrainer(TimeTrainer):
         radar = data["radar"]
         
         est_audio = self.model(noisy_in, radar)
-        print(est_audio.shape)
-        print(data["clean"].shape)
+
         loss = self.calculate_loss(est_audio=est_audio, clean_audio=data["clean"])
 
         return loss, est_audio
@@ -159,15 +158,15 @@ class TimeSepaTrainer(TimeTrainer):
     def __init__(self, model, data, args):
         super().__init__(model, data, args)
         self.sep_loss = SeparateLoss(mix_num=2, device=args.device)
-        self.loss_fn = sisnr
-
+        self.loss_fn = lambda x, y:-sisnr(x,y)
 
     def run_batch(self, batch_data):
         data = self.process_data(batch_data)
         noisy_in = data["noisy"]
         noisy_in = noisy_in.unsqueeze(1)
         est_audio = self.model(noisy_in)
-        snr_loss = -self.sep_loss.cal_seploss(est=est_audio, clean=data["clean"], loss_fn = self.loss_fn)
+        sep_loss = self.sep_loss.cal_seploss(est=est_audio, clean=data["clean"], loss_fn = self.loss_fn)
+        snr_loss = sep_loss
         loss = {
             "loss":snr_loss
         }
