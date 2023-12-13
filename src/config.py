@@ -16,11 +16,11 @@ def get_config():
     parser.add_argument('--segment', type=int, default=4, help='Segment') # segment signal per 2 seconds
 
     #basic 
-    parser.add_argument('--model_path', type=str, default='log/23-12-06-15-27-13/model/best_train.pth', help='Model path')
+    parser.add_argument('--model_path', type=str, default='log/23-12-12-17-03-58/model/temp_train.pth', help='Model path')
     parser.add_argument('--learning_rate', type=float, default=15e-5, help='Learning rate')
     parser.add_argument('--epoch', type=int, default=300, help='Epoch')
     parser.add_argument('--batch_size', type=int, default=1, help='Batch size')
-    parser.add_argument('--checkpoint', type=bool, default=False, help='Checkpoint') # If you want to train with pre-trained, or resume set True
+    parser.add_argument('--checkpoint', type=bool, default=True, help='Checkpoint') # If you want to train with pre-trained, or resume set True
 
     # device 
     parser.add_argument('--device', type=str, default='cuda:0', help='Gpu device')

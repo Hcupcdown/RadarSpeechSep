@@ -1,6 +1,9 @@
 
+import os
+
 import torch
 import torch.nn.functional as F
+import torchaudio
 from einops import rearrange
 from tqdm import tqdm
 
@@ -151,8 +154,9 @@ class TimeRadarSepaTrainer(TimeTrainer):
         est_audio = self.model(noisy_in, radar)
 
         loss = self.calculate_loss(est_audio=est_audio, clean_audio=data["clean"])
-
-        return loss, est_audio
+        
+        c, _ = torch.max(est_audio, dim=-1, keepdim=True)
+        return loss, est_audio / (c+1e-8)
     
 class TimeSepaTrainer(TimeTrainer):
     def __init__(self, model, data, args):
@@ -170,4 +174,37 @@ class TimeSepaTrainer(TimeTrainer):
         loss = {
             "loss":snr_loss
         }
-        return loss, est_audio
+        c, _ = torch.max(est_audio, dim=-1, keepdim=True)
+        return loss, est_audio / (c+1e-8)
+
+class TimeSepaTest(TimeSepaTrainer):
+    def __init__(self, model, data, args):
+        self.model = model.to(args.device)
+        self.val_loader = data['val']
+        self.sep_loss = SeparateLoss(mix_num=2, device=args.device)
+        self.loss_fn = lambda x, y:-sisnr(x,y)
+        self.args = args
+    
+    def save_wav(self, save_path, audio):
+        audio = audio.squeeze(0)
+        audio = audio.to(torch.float)
+        os.makedirs(os.path.join("result", save_path), exist_ok=True)
+        print(audio.shape)
+        for i in range(audio.shape[0]):
+            temp_audio = audio[i].unsqueeze(0).cpu().detach()
+            torchaudio.save(os.path.join("result", save_path,f"{i}.wav"), temp_audio, 8000)
+    
+    def test(self):
+        data_loader = self.val_loader
+        total_loss = 0
+        total_snr = 0
+        self.model.eval()
+        for i, batch_data in enumerate(tqdm(data_loader)):
+            loss, est_audio = self.run_batch(batch_data)
+            total_loss += loss["loss"].item()
+            clean_audio = batch_data["clean"]
+            noise_audio = batch_data["noisy"]
+            self.save_wav(f"{i}/est/", est_audio)
+            self.save_wav(f"{i}/clean/", clean_audio)
+            self.save_wav(f"{i}/noise", noise_audio.unsqueeze(0))
+        return total_loss/(i+1), total_snr/(i+1)
