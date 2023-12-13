@@ -27,7 +27,7 @@ def main():
         train_dataset = SeparDataset(args.dataset['train'],
                                      segment=args.setting['segment'],
                                      sample_rate= args.setting['sample_rate'],
-                                     dynamic_mix=False)
+                                     dynamic_mix=True)
 
         train_loader  = DataLoader(train_dataset,
                                    batch_size=args.batch_size,
@@ -44,10 +44,6 @@ def main():
         # model = TSCNet(num_channel=16, num_features=513, clean_mask = False)
         # trainer = FreRadarSepaTrainer(model, data_loader, n_fft=1024, hop=256, loss_weights=[0.1,0.9,0.9,0.2], args = args)
         model = MossFormer(speaker_num=2)
-        input = torch.randn(1, 1, 32000)
-        Flops, Params = profile(model, inputs=(input, ))
-
-        print(f"Flops: {Flops/1e9}G", f"Params: {Params/1e6}M")
 
         trainer = TimeSepaTrainer(model, data_loader, args)
         trainer.train()
@@ -58,10 +54,6 @@ def main():
         val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=args.num_worker, collate_fn=collate_fn)
         data_loader   = {'val':val_loader}
         model  = MossFormer(speaker_num=2)
-        input = torch.randn(1, 1, 32000)
-        Flops, Params = profile(model, inputs=(input, ))
-
-        print(f"Flops: {Flops/1e9}G", f"Params: {Params/1e6}M")
 
         model.load_state_dict(torch.load("log/23-12-12-17-03-58/model/best_val.pth")["state_dict"])
 

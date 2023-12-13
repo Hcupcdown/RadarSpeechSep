@@ -13,7 +13,7 @@ class SeparDataset:
 
     def __init__(self,
                      dataset_dir,
-                     mix_num=5,
+                     mix_num=2,
                      segment=None,
                      sample_rate=16000,
                      dynamic_mix=True):

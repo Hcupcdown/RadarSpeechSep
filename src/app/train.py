@@ -18,8 +18,7 @@ class Trainer():
                                            mode='min',
                                            factor=0.5,
                                            patience=2,
-                                           verbose=True,
-                                           min_lr=1e-8)
+                                           verbose=True)
 
         self.train_loader = data['train']
         self.val_loader = data['val']
