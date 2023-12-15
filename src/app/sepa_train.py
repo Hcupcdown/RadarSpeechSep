@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torchaudio
 from einops import rearrange
 from tqdm import tqdm
-
+import torchvision.transforms as T
 from utils import sound2stft, stft2sound
 from utils.metric import sisnr
 from utils.separate_loss import SeparateLoss
@@ -114,13 +114,11 @@ class TimeTrainer(Trainer):
     def process_data(self, batch_data):
         noisy = batch_data["noisy"].to(self.args.device)
         clean = batch_data["clean"].to(self.args.device)
-        radar = batch_data["radar"].to(self.args.device)
         noisy, _ = self.normal(noisy)
         clean, std = self.normal(clean)
         return {
             "noisy":noisy,
             "clean":clean,
-            "radar":radar,
             "std":std
         }
     
@@ -145,16 +143,28 @@ class TimeTrainer(Trainer):
 
 class TimeRadarSepaTrainer(TimeTrainer):
 
-
+    def __init__(self, model, data, args):
+        super().__init__(model, data, args)
+        self.loss_fn = lambda x, y : -sisnr(x,y)
+        self.normalization = T.Normalize(mean=[0.5], std=[0.5])
+    
+    def process_data(self, batch_data):
+        data = super().process_data(batch_data)
+        radar = batch_data["radar"].to(self.args.device)
+        data["radar"] = self.normalization(radar**0.03)
+        return data
+    
     def run_batch(self, batch_data):
         data = self.process_data(batch_data)
         noisy_in = data["noisy"]
-        radar = data["radar"]
-        
-        est_audio = self.model(noisy_in, radar)
-
-        loss = self.calculate_loss(est_audio=est_audio, clean_audio=data["clean"])
-        
+        radar_in = data["radar"]
+        noisy_in = noisy_in.unsqueeze(1)
+        est_audio = self.model(noisy_in, radar_in)
+        sep_loss = torch.mean(self.loss_fn(est_audio, data["clean"]))
+        snr_loss = sep_loss
+        loss = {
+            "loss":snr_loss
+        }
         c, _ = torch.max(est_audio, dim=-1, keepdim=True)
         return loss, est_audio / (c+1e-8)
     

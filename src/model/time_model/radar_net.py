@@ -72,12 +72,10 @@ class RadarNet(nn.Module):
     def __init__(self,
                  in_channels:int,
                  embed_channels:int,
-                 hidden:int,
-                 depth:int,
-                 device:str="cuda:0") -> None:
+                 hidden:int) -> None:
         super().__init__()
 
-        self.out_channels = hidden*(2**depth)
+        self.hidden = hidden
         self.in_conv = Conv2dBlock(in_channels=1,
                                    out_channels=embed_channels, 
                                    kernel_size=3,
@@ -102,7 +100,7 @@ class RadarNet(nn.Module):
         
         self.conv1d = nn.Sequential(
              Conv1dBlock(in_channels=in_channels,
-                         out_channels=self.out_channels,
+                         out_channels=hidden,
                          kernel_size=3,
                          stride=1,
                          padding=1))
@@ -110,15 +108,15 @@ class RadarNet(nn.Module):
         self.resconv1d = nn.Sequential()
         for i in range(5):
             self.resconv1d.add_module(f'resblock{i}',
-                                      ResBlock(Conv1dBlock(in_channels=self.out_channels,
-                                                           out_channels=self.out_channels,
+                                      ResBlock(Conv1dBlock(in_channels=hidden,
+                                                           out_channels=hidden,
                                                            kernel_size=3,
                                                            stride=1,
                                                            padding=1)))
         # end for
 
         self.flatten_conv = nn.Conv1d(
-            in_channels=self.out_channels,
+            in_channels=hidden,
             out_channels=1,
             kernel_size=3,
             stride=1,
