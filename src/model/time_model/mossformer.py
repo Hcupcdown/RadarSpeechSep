@@ -338,7 +338,13 @@ class RadarMossFormer(nn.Module):
 
         self.in_point_wise_conv = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=1)
         for i in range(MFB_num):
-            setattr(self, f"MFB_{i}", MossFormerBlock(dim=hidden_dim,
+            setattr(self, f"1_MFB_{i}", MossFormerBlock(dim=hidden_dim,
+                                                      group_size=256,
+                                                      query_key_dim=128,
+                                                      expansion_factor=2.,
+                                                      dropout=drop_out_rate))
+        for i in range(MFB_num):
+            setattr(self, f"2_MFB_{i}", MossFormerBlock(dim=hidden_dim,
                                                       group_size=256,
                                                       query_key_dim=128,
                                                       expansion_factor=2.,
@@ -386,7 +392,7 @@ class RadarMossFormer(nn.Module):
         x_MFB_in = self.in_point_wise_conv(x_pos)
         x_MFB_in = x_MFB_in.transpose(-1, -2)
         for i in range(self.MFB_num):
-            x_MFB_in = getattr(self, f"MFB_{i}")(x_MFB_in)
+            x_MFB_in = getattr(self, f"1_MFB_{i}")(x_MFB_in)
         x_MFB_out = x_MFB_in.transpose(-1, -2)
         x_MFB_out = F.relu(x_MFB_out)
         
@@ -395,6 +401,11 @@ class RadarMossFormer(nn.Module):
         x_MFB_out = x_MFB_out.repeat_interleave(speaker_num, dim=0)
         x_masked = x_MFB_out * radar
         x_split = self.fusion(torch.cat([x_MFB_out, x_masked], dim=1))
+        
+        x_split = x_split.transpose(-1, -2)
+        for i in range(self.MFB_num):
+            x_split = getattr(self, f"2_MFB_{i}")(x_split)
+        x_split = x_split.transpose(-1, -2)
 
         x_split = self.glu(x_split)
         mask = self.out_point_wise_conv(x_split)
