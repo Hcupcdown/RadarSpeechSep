@@ -354,7 +354,7 @@ class RadarMossFormer(nn.Module):
                                                       dropout=drop_out_rate))
         self.radar_net = RadarNet(in_channels=513,
                                   embed_channels=32,
-                                  hidden=64)
+                                  out_channels=hidden_dim)
         self.fusion = nn.Sequential(
             nn.Conv1d(2*hidden_dim,
                       hidden_dim,
