@@ -3,7 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import einsum, rearrange
 from rotary_embedding_torch import RotaryEmbedding
+
 from .radar_net import RadarNet
+
 # helper functions
 
 def exists(val):
@@ -83,12 +85,13 @@ class GLU(nn.Module):
         self.parallel_liner1 = nn.Conv1d(dim, dim, kernel_size=1)
         self.parallel_liner2 = nn.Conv1d(dim, dim, kernel_size=1)
     
-    def forward(self, x:torch.Tensor) -> torch.Tensor:
-        x1 = self.parallel_liner1(x)
-        x2 = self.parallel_liner2(x)
-        x = torch.sigmoid(x1) * x2
+    def forward(self, x1:torch.Tensor, x2:torch.Tensor=None) -> torch.Tensor:
+        if x2 is None:
+            x2 = x1
+        x1 = self.parallel_liner1(x1)
+        x2 = self.parallel_liner2(x2)
+        x = x1 * torch.sigmoid(x2)
         return x
-
 
 class MossFormerBlock(nn.Module):
     def __init__(
@@ -359,6 +362,7 @@ class RadarMossFormer(nn.Module):
                       stride=1),
             nn.ReLU()
         )
+        self.select_glu = GLU(hidden_dim)
         self.glu = GLU(hidden_dim)
         self.out_point_wise_conv = nn.Sequential(
             nn.Conv1d(hidden_dim, hidden_dim, kernel_size=1),
@@ -399,9 +403,8 @@ class RadarMossFormer(nn.Module):
         radar = self.radar_net(radar)
         radar = F.interpolate(radar, size=x_MFB_out.shape[-1])
         x_MFB_out = x_MFB_out.repeat_interleave(speaker_num, dim=0)
-        x_masked = x_MFB_out * radar
-        x_split = self.fusion(torch.cat([x_MFB_out, x_masked], dim=1))
-        
+        x_split = self.select_glu(x_MFB_out, radar)
+
         x_split = x_split.transpose(-1, -2)
         for i in range(self.MFB_num):
             x_split = getattr(self, f"2_MFB_{i}")(x_split)
