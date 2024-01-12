@@ -39,6 +39,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     
+    
     def __init__(self,
                  in_channels,
                  out_channels,

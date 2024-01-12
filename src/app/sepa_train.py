@@ -4,9 +4,10 @@ import os
 import torch
 import torch.nn.functional as F
 import torchaudio
+import torchvision.transforms as T
 from einops import rearrange
 from tqdm import tqdm
-import torchvision.transforms as T
+
 from utils import sound2stft, stft2sound
 from utils.metric import sisnr
 from utils.separate_loss import SeparateLoss
@@ -112,7 +113,7 @@ class TimeTrainer(Trainer):
 
 
     def process_data(self, batch_data):
-        noisy = batch_data["noisy"].to(self.args.device)
+        noisy = batch_data["mix"].to(self.args.device)
         clean = batch_data["clean"].to(self.args.device)
         noisy, _ = self.normal(noisy)
         clean, std = self.normal(clean)
@@ -177,7 +178,7 @@ class TimeSepaTrainer(TimeTrainer):
     def run_batch(self, batch_data):
         data = self.process_data(batch_data)
         noisy_in = data["noisy"]
-        noisy_in = noisy_in.unsqueeze(1)
+
         est_audio = self.model(noisy_in)
         sep_loss = self.sep_loss.cal_seploss(est=est_audio, clean=data["clean"], loss_fn = self.loss_fn)
         snr_loss = sep_loss
