@@ -125,7 +125,15 @@ class SeparDataset:
         clean_out = torch.cat(clean_out, dim=0)
         if self.radar:
             radar_out = torch.stack(radar_out, dim=0)
-        return self._segment_batch(mix=mix_audio, clean=clean_out, radar=radar_out)
+        
+        if self.segment is not None:
+
+            return self._segment_batch(mix=mix_audio, clean=clean_out, radar=radar_out)
+        
+        if self.radar:
+            return mix_audio, clean_out, radar_out
+        else:
+            return mix_audio, clean_out
     
     def _getitem_dynamic(self, index):
 

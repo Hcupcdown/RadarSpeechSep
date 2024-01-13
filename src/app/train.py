@@ -39,7 +39,7 @@ class Trainer():
         for epoch in range(self.args.epoch):
             torch.cuda.empty_cache()
             self.model.train()
-            train_loss = self.train_epoch(self.train_loader, epoch=epoch)
+            train_loss = 0#self.train_epoch(self.train_loader, epoch=epoch)
             checkpoint = {'loss': train_loss,
                           'state_dict': self.model.state_dict(),
                           'optimizer': self.optimizer.state_dict()}

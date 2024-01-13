@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -239,6 +241,8 @@ class MossFormer(nn.Module):
         """
         super().__init__()
         self.speaker_num = speaker_num
+        self.kernel_size = kernel_size
+        self.stride = stride
         self.MFB_num = MFB_num
         self.in_conv = nn.Sequential(
             nn.Conv1d(in_dim,
@@ -282,6 +286,7 @@ class MossFormer(nn.Module):
             torch.Tensor: Output tensor with shape [BxC, 1, T].
         """
         in_len = x.shape[-1]
+        x = F.pad(x, (0, self.cal_padding(in_len) - in_len))
         x_in = self.in_conv(x)
         
         x_trans = x_in.transpose(-1, -2)
@@ -305,7 +310,15 @@ class MossFormer(nn.Module):
         split_sound =  self.out_conv(mask * x_in)[...,:in_len]
         split_sound = rearrange(split_sound, '(b c) n s -> b (c n) s', c=self.speaker_num)
         return split_sound
-
+    
+    def cal_padding(self, length):
+        length = math.ceil(length)
+        length = math.ceil((length - self.kernel_size) / self.stride) + 1
+        length = max(length, 1)
+        length = (length - 1) * self.stride + self.kernel_size
+        length = int(math.ceil(length))
+        return length
+    
 class RadarMossFormer(nn.Module):
     def __init__(self,
                  in_dim:int=1,
