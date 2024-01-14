@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
 
-from .conformer import ConformerBlock
-from .conv_modules import *
+from ..conformer import ConformerBlock
+from ..Mossformer.conv_modules import *
 
 
 class Encoder(nn.Module):

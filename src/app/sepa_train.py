@@ -11,7 +11,6 @@ from tqdm import tqdm
 from utils import sound2stft, stft2sound
 from utils.metric import sisnr
 from utils.separate_loss import SeparateLoss
-from utils.stft_loss import MultiResolutionSTFTLoss
 
 from .train import Trainer
 
@@ -115,20 +114,12 @@ class TimeTrainer(Trainer):
     def process_data(self, batch_data):
         noisy = batch_data["mix"].to(self.args.device)
         clean = batch_data["clean"].to(self.args.device)
-        noisy, _ = self.normal(noisy)
-        clean, std = self.normal(clean)
+
         return {
             "noisy":noisy,
-            "clean":clean,
-            "std":std
+            "clean":clean
         }
     
-    @staticmethod
-    def normal(x):
-        std = x.std(dim=-1, keepdim=True)
-        x = x / (std + 1e-8)
-        return x, std
-       
     def calculate_loss(self, est_audio, clean_audio):
         est_audio = rearrange(est_audio, "b c t -> (b c) t")
         clean_audio = rearrange(clean_audio, "b c t -> (b c) t")
@@ -180,13 +171,15 @@ class TimeSepaTrainer(TimeTrainer):
         noisy_in = data["noisy"]
 
         est_audio = self.model(noisy_in)
-        sep_loss = self.sep_loss.cal_seploss(est=est_audio, clean=data["clean"], loss_fn = self.loss_fn)
-        snr_loss = sep_loss
+        sep_loss = self.sep_loss.cal_seploss(est=est_audio,
+                                             clean=data["clean"],
+                                             loss_fn = self.loss_fn)
+        snr_loss = -sep_loss
         loss = {
-            "loss":snr_loss
+            "loss":sep_loss,
+            "snr_loss":snr_loss
         }
-        c, _ = torch.max(est_audio, dim=-1, keepdim=True)
-        return loss, est_audio / (c+1e-8)
+        return loss, est_audio
 
 class TimeSepaTest(TimeSepaTrainer):
     def __init__(self, model, data, args):

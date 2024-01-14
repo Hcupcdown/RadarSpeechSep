@@ -1,9 +1,3 @@
-import os
-import warnings
-
-from thop import profile
-from torchinfo import summary
-
 from app.sepa_test import FreSepaTester
 from app.sepa_train import *
 from config import *
@@ -32,7 +26,6 @@ def main():
     else:
 
         model  = MossFormer(speaker_num=2)
-
         model.load_state_dict(torch.load("log/23-12-13-16-24-16/model/best_val.pth")["state_dict"])
 
         tester = TimeSepaTest(model, data_loader, args = args)

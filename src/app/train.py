@@ -39,7 +39,7 @@ class Trainer():
         for epoch in range(self.args.epoch):
             torch.cuda.empty_cache()
             self.model.train()
-            train_loss = 0#self.train_epoch(self.train_loader, epoch=epoch)
+            train_loss = self.train_epoch(self.train_loader, epoch=epoch)
             checkpoint = {'loss': train_loss,
                           'state_dict': self.model.state_dict(),
                           'optimizer': self.optimizer.state_dict()}
@@ -48,13 +48,13 @@ class Trainer():
             if best_train_loss > train_loss:
                 best_train_loss = train_loss
                 self.log.save(checkpoint, "best_train.pth")
-            
+
             if epoch % self.args.val_per_epoch == 0:
                 self.model.eval()
-            
+
                 with torch.no_grad():
-                    val_loss, val_snr = self.test_epoch(self.val_loader,
-                                                               epoch=epoch)
+                    val_loss, val_snr = 0,0#self.test_epoch(self.val_loader,
+                                            #                   epoch=epoch)
 
                 self.log.add_scalar(cate="val",
                                     global_step = epoch//self.args.val_per_epoch,
@@ -83,8 +83,8 @@ class Trainer():
             self.optimizer.zero_grad()
             loss["loss"].backward()
             original_grad = nn.utils.clip_grad_norm_(self.model.parameters(),
-                                     max_norm=5,
-                                     norm_type=2)
+                                                     max_norm=5,
+                                                     norm_type=2)
             self.optimizer.step()
             self.log.add_scalar(cate="train",
                                 global_step = epoch*len(data_loader) + i,

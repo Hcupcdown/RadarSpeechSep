@@ -5,7 +5,7 @@ import torch.nn as nn
 from einops import rearrange
 from torch.nn import functional as F
 
-from .conformer import ConformerBlock, CrossConformerBlock
+from ..conformer import ConformerBlock, CrossConformerBlock
 
 
 class DilatedDenseNet(nn.Module):
