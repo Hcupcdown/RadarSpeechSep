@@ -95,12 +95,15 @@ class RadarMossFormer(nn.Module):
         x_MFB_out = x_MFB_in.transpose(-1, -2)
         x_MFB_out = F.relu(x_MFB_out)
         
+        # radar net
         radar = self.radar_net(radar)
         radar = F.interpolate(radar, size=x_MFB_out.shape[-1])
         x_MFB_out = x_MFB_out.repeat_interleave(speaker_num, dim=0)
-        x_split = self.select_glu(x_MFB_out, radar)
 
-        x_split = x_split.transpose(-1, -2)
+        # split speaker
+        x_split = self.select_glu(x_MFB_out, radar)
+        
+        x_split = x_split.transpose(-1, -2) 
         for i in range(self.MFB_num):
             x_split = getattr(self, f"2_MFB_{i}")(x_split)
         x_split = x_split.transpose(-1, -2)

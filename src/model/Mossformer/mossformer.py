@@ -308,14 +308,7 @@ class MossFormer(nn.Module):
         split_sound =  self.out_conv(mask * x_in)[...,:in_len]
         split_sound = rearrange(split_sound, '(b c) n s -> b (c n) s', c=self.speaker_num)
         return split_sound
-    
-    def cal_padding(self, length):
-        length = math.ceil(length)
-        length = math.ceil((length - self.kernel_size) / self.stride) + 1
-        length = max(length, 1)
-        length = (length - 1) * self.stride + self.kernel_size
-        length = int(math.ceil(length))
-        return length
+
 
 if __name__ == "__main__":
     x = torch.randn(2, 1, 12090)
