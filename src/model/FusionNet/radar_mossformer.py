@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from radar_net import RadarNet
 
 from ..Mossformer.mossformer import GLU, MossFormerBlock, ScaledSinuEmbedding
+from .radar_net import RadarNet
 
 
 class RadarMossFormer(nn.Module):

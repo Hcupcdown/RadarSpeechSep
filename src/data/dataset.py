@@ -48,7 +48,7 @@ class SeparDataset:
         self.radar = radar
         self.mix_type = mix_type
 
-        self.srr = 180.
+        self.srr = 90.
         if segment is not None:
             self.segment = int(segment  * sample_rate)
             self.radar_segment = int(self.segment // self.srr)
@@ -72,7 +72,7 @@ class SeparDataset:
         
         radar_offset = int(offset/self.srr)
         if radar_offset + self.radar_segment < radar.shape[-1]:
-            radar = radar[:, radar_offset : radar_offset + self.radar_segment]
+            radar = radar[..., radar_offset : radar_offset + self.radar_segment]
         else:
             radar = F.pad(radar, (0, self.radar_segment - radar.shape[-1]))
 
@@ -92,7 +92,7 @@ class SeparDataset:
         
         radar_offset = int(offset/self.srr)
         if radar_offset + self.radar_segment < radar.shape[-1]:
-            radar = radar[:, radar_offset : radar_offset + self.radar_segment]
+            radar = radar[..., radar_offset : radar_offset + self.radar_segment]
         else:
             radar = F.pad(radar, (0, self.radar_segment - radar.shape[-1]))
 
@@ -124,7 +124,7 @@ class SeparDataset:
             clean_out.append(clean)
         clean_out = torch.cat(clean_out, dim=0)
         if self.radar:
-            radar_out = torch.stack(radar_out, dim=0)
+            radar_out = torch.cat(radar_out, dim=0)
         
         if self.segment is not None:
 
@@ -165,7 +165,7 @@ class SeparDataset:
         clean_out = torch.cat(clean_out, dim=0)
         mix_out = torch.sum(clean_out, dim=0, keepdim=True)
         if self.radar:
-            radar_out = torch.stack(radar_out, dim=0)
+            radar_out = torch.cat(radar_out, dim=0)
 
         if self.pad_to_batch and sample_num < self.mix_num:
             clean_out = F.pad(clean_out, (0,0,0, self.mix_num - sample_num))

@@ -1,10 +1,13 @@
+import os
+
 from app.sepa_test import FreSepaTester
 from app.sepa_train import *
 from config import *
 from data import *
-from model import CleanSpeechSepNet, MossFormer, RadarSpeechSepNet, TSCNet
+from model import MossFormer, RadarMossFormer
 from utils import *
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def main():
     
@@ -19,9 +22,9 @@ def main():
 
         data_loader = build_dataloader(args)
 
-        model = MossFormer(speaker_num=2)
-
-        trainer = TimeSepaTrainer(model, data_loader, args)
+        model = RadarMossFormer()
+        trainer = TimeRadarSepaTrainer(model, data_loader, args)
+        # trainer = TimeSepaTrainer(model, data_loader, args)
         trainer.train()
     else:
 
