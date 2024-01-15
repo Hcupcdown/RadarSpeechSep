@@ -8,7 +8,7 @@ import torchvision.transforms as T
 from einops import rearrange
 from tqdm import tqdm
 
-from utils import sound2stft, stft2sound
+from utils import sound2stft, sound_normal, stft2sound
 from utils.metric import sisnr
 from utils.separate_loss import SeparateLoss
 
@@ -114,7 +114,8 @@ class TimeTrainer(Trainer):
     def process_data(self, batch_data):
         noisy = batch_data["mix"].to(self.args.device)
         clean = batch_data["clean"].to(self.args.device)
-
+        noisy, _ = sound_normal(noisy)
+        clean, _ = sound_normal(clean)
         return {
             "noisy":noisy,
             "clean":clean
@@ -137,7 +138,9 @@ class TimeRadarSepaTrainer(TimeTrainer):
 
     def __init__(self, model, data, args):
         super().__init__(model, data, args)
-        self.loss_fn = lambda x, y : -sisnr(x,y)
+        self.sep_loss = SeparateLoss(mix_num=args.dataset["mix_num"],
+                                     device=args.device)
+        self.loss_fn = lambda x, y:-sisnr(x,y)
 
     def process_data(self, batch_data):
         data = super().process_data(batch_data)
@@ -154,7 +157,9 @@ class TimeRadarSepaTrainer(TimeTrainer):
         noisy_in = data["noisy"]
         radar_in = data["radar"]
         est_audio = self.model(noisy_in, radar_in)
-        sep_loss = torch.mean(self.loss_fn(est_audio, data["clean"]))
+        sep_loss = self.sep_loss.cal_seploss(est=est_audio,
+                                             clean=data["clean"],
+                                             loss_fn = self.loss_fn)
         snr_loss = sep_loss
         loss = {
             "loss":snr_loss
@@ -165,7 +170,8 @@ class TimeRadarSepaTrainer(TimeTrainer):
 class TimeSepaTrainer(TimeTrainer):
     def __init__(self, model, data, args):
         super().__init__(model, data, args)
-        self.sep_loss = SeparateLoss(mix_num=2, device=args.device)
+        self.sep_loss = SeparateLoss(mix_num=args.dataset["mix_num"],
+                                     device=args.device)
         self.loss_fn = lambda x, y:-sisnr(x,y)
 
     def run_batch(self, batch_data):
@@ -187,7 +193,8 @@ class TimeSepaTest(TimeSepaTrainer):
     def __init__(self, model, data, args):
         self.model = model.to(args.device)
         self.val_loader = data['val']
-        self.sep_loss = SeparateLoss(mix_num=2, device=args.device)
+        self.sep_loss = SeparateLoss(mix_num=args.dataset["mix_num"], 
+                                     device=args.device)
         self.loss_fn = lambda x, y:-sisnr(x,y)
         self.args = args
     
@@ -219,7 +226,6 @@ class TimeRadarSepaTest(TimeRadarSepaTrainer):
     def __init__(self, model, data, args):
         self.model = model.to(args.device)
         self.val_loader = data['val']
-        self.normalization = T.Normalize(mean=[0.5], std=[0.5])
         self.loss_fn = lambda x, y:-sisnr(x,y)
         self.args = args
     
@@ -241,8 +247,8 @@ class TimeRadarSepaTest(TimeRadarSepaTrainer):
             loss, est_audio = self.run_batch(batch_data)
             total_loss += loss["loss"].item()
             clean_audio = batch_data["clean"]
-            noise_audio = batch_data["noisy"]
+            noise_audio = batch_data["mix"]
             self.save_wav(f"{i}/est/", est_audio)
             self.save_wav(f"{i}/clean/", clean_audio)
-            self.save_wav(f"{i}/noise", noise_audio.unsqueeze(0))
+            self.save_wav(f"{i}/noise", noise_audio)
         return total_loss/(i+1), total_snr/(i+1)

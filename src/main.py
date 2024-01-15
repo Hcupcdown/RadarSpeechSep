@@ -4,10 +4,10 @@ from app.sepa_test import FreSepaTester
 from app.sepa_train import *
 from config import *
 from data import *
-from model import MossFormer, RadarMossFormer
+from model import ConvTasNet, MossFormer, RadarMossFormer
 from utils import *
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main():
     
@@ -22,16 +22,18 @@ def main():
 
         data_loader = build_dataloader(args)
 
-        model = RadarMossFormer()
-        trainer = TimeRadarSepaTrainer(model, data_loader, args)
-        # trainer = TimeSepaTrainer(model, data_loader, args)
+        # model = RadarMossFormer()
+        # trainer = TimeRadarSepaTrainer(model, data_loader, args)
+        # model = MossFormer(speaker_num=args.dataset["mix_num"])
+        model  = ConvTasNet()
+        trainer = TimeSepaTrainer(model, data_loader, args)
         trainer.train()
     else:
+        data_loader = build_dataloader(args, train = False)
+        model  = RadarMossFormer()
+        model.load_state_dict(torch.load("log/24-01-14-21-15-17/model/best_train.pth")["state_dict"])
 
-        model  = MossFormer(speaker_num=2)
-        model.load_state_dict(torch.load("log/23-12-13-16-24-16/model/best_val.pth")["state_dict"])
-
-        tester = TimeSepaTest(model, data_loader, args = args)
+        tester = TimeRadarSepaTest(model, data_loader, args = args)
         print('---Test score---')
         tester.test()
 

@@ -284,22 +284,21 @@ class MossFormer(nn.Module):
             torch.Tensor: Output tensor with shape [BxC, 1, T].
         """
         in_len = x.shape[-1]
-        x = F.pad(x, (0, self.cal_padding(in_len) - in_len))
         x_in = self.in_conv(x)
-        
+
         x_trans = x_in.transpose(-1, -2)
         x_norm = self.ln1(x_trans)
         abs_pos_emb = self.abs_pos_emb(x_norm)
         x_pos = abs_pos_emb + x_norm
         x_pos = x_pos.transpose(-1, -2)
-        
+
         x_MFB_in = self.in_point_wise_conv(x_pos)
         x_MFB_in = x_MFB_in.transpose(-1, -2)
         for i in range(self.MFB_num):
             x_MFB_in = getattr(self, f"MFB_{i}")(x_MFB_in)
         x_MFB_out = x_MFB_in.transpose(-1, -2)
         x_MFB_out = F.relu(x_MFB_out)
-        
+
         x_split = self.split_speaker_conv(x_MFB_out)
         x_split = rearrange(x_split, 'b (c n) s -> (b c) n s', c=self.speaker_num)
         x_split = self.glu(x_split)

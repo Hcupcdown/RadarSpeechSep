@@ -70,11 +70,12 @@ class SeparDataset:
         if not self.radar:
             return clean
         
-        radar_offset = int(offset/self.srr)
-        if radar_offset + self.radar_segment < radar.shape[-1]:
-            radar = radar[..., radar_offset : radar_offset + self.radar_segment]
-        else:
+        
+        if radar.shape[-1] < self.radar_segment:
             radar = F.pad(radar, (0, self.radar_segment - radar.shape[-1]))
+        else:
+            radar_offset = int(offset/self.srr)
+            radar = radar[..., radar_offset : radar_offset + self.radar_segment]
 
         return clean, radar
     
@@ -90,11 +91,11 @@ class SeparDataset:
         if not self.radar:
             return mix, clean
         
-        radar_offset = int(offset/self.srr)
-        if radar_offset + self.radar_segment < radar.shape[-1]:
-            radar = radar[..., radar_offset : radar_offset + self.radar_segment]
-        else:
+        if radar.shape[-1] < self.radar_segment:
             radar = F.pad(radar, (0, self.radar_segment - radar.shape[-1]))
+        else:
+            radar_offset = int(offset/self.srr)
+            radar = radar[..., radar_offset : radar_offset + self.radar_segment]
 
         return mix, clean, radar
         
@@ -207,32 +208,35 @@ def sound_collate_fn(batch):
         "clean":torch.stack(clean,0)
         }
 
-def build_dataloader(args):
+def build_dataloader(args, train = True):
 
     if args.radar:
         collate_fn = radar_collate_fn
     else:
         collate_fn = sound_collate_fn
-
-    train_dataset = SeparDataset(args.dataset_dir['train'],
-                                 **args.dataset)
-
-    train_loader  = DataLoader(train_dataset,
-                               batch_size=args.batch_size,
-                               shuffle=True,
-                               num_workers=args.num_worker,
-                               collate_fn=collate_fn)
-     
+        
     val_dataset   = SeparDataset(args.dataset_dir['val'],
                                  sample_rate= args.dataset['sample_rate'],
-                                 dynamic_mix=False)
+                                 dynamic_mix=False,
+                                 radar=args.radar,
+                                 segment=args.dataset['segment'],
+                                 mix_num=args.dataset['mix_num'])
     
     val_loader    = DataLoader(val_dataset,
                                batch_size=1,
                                shuffle=False,
                                num_workers=args.num_worker,
                                collate_fn=collate_fn)
+    dataloader = {"val":val_loader}
+    if train:
+        train_dataset = SeparDataset(args.dataset_dir['train'],
+                                     **args.dataset)
     
-    dataloader = {"train":train_loader, "val":val_loader}
+        train_loader  = DataLoader(train_dataset,
+                                   batch_size=args.batch_size,
+                                   shuffle=True,
+                                   num_workers=args.num_worker,
+                                   collate_fn=collate_fn)
+        dataloader = {"train":train_loader, "val":val_loader}
     
     return dataloader

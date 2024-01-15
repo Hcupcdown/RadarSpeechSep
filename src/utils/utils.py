@@ -9,7 +9,22 @@ import torch.nn as nn
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
+
+def sound_normal(x):
+    """
+    Normalize the input sound tensor by dividing it by its standard deviation.
+
+    Args:
+        x (torch.Tensor): Input sound tensor.
+
+    Returns:
+        torch.Tensor: Normalized sound tensor.
+        torch.Tensor: Standard deviation of the input sound tensor.
+    """
+    std = x.std(dim=-1, keepdim=True)
+    x = x / (std + 1e-8)
+    return x, std
+
 def get_params(args):
     
     params    = {}
