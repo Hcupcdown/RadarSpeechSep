@@ -1,10 +1,9 @@
 import os
 
-from app.sepa_test import FreSepaTester
-from app.sepa_train import *
+from app import build_tester, build_trainer
 from config import *
 from data import *
-from model import ConvTasNet, MossFormer, RadarMossFormer
+from model import ConvTasNet, DPRNN_sep, MossFormer, RadarMossFormer, bulid_model
 from utils import *
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -17,24 +16,14 @@ def main():
     print(vars(args))
 
     seed_init(1234)
-
+    data_loader = build_dataloader(args)
+    model = bulid_model(args)
+    
     if args.action == 'train':
-
-        data_loader = build_dataloader(args)
-
-        # model = RadarMossFormer()
-        # trainer = TimeRadarSepaTrainer(model, data_loader, args)
-        # model = MossFormer(speaker_num=args.dataset["mix_num"])
-        model  = ConvTasNet()
-        trainer = TimeSepaTrainer(model, data_loader, args)
+        trainer = build_trainer(args, model, data_loader)
         trainer.train()
     else:
-        data_loader = build_dataloader(args, train = False)
-        model  = RadarMossFormer()
-        model.load_state_dict(torch.load("log/24-01-14-21-15-17/model/best_train.pth")["state_dict"])
-
-        tester = TimeRadarSepaTest(model, data_loader, args = args)
-        print('---Test score---')
+        tester = build_tester(args, model, data_loader)
         tester.test()
 
 if __name__ == "__main__":

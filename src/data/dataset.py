@@ -228,7 +228,7 @@ def build_dataloader(args, train = True):
                                num_workers=args.num_worker,
                                collate_fn=collate_fn)
     dataloader = {"val":val_loader}
-    if train:
+    if args.action == "train":
         train_dataset = SeparDataset(args.dataset_dir['train'],
                                      **args.dataset)
     

@@ -1,4 +1,6 @@
 from .log import Log
+from .metric import sisnr
+from .separate_loss import SeparateLoss
 from .utils import *
 
 
