@@ -5,15 +5,59 @@
 # @File     : model.py
 # @Software : PyCharm
 
+import math
+
+import numpy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy
 from numpy.lib import stride_tricks
-from utils import overlap_and_add, device
 from torch.autograd import Variable
 
 EPS = 1e-8
+
+def overlap_and_add(signal, frame_step):
+    """Reconstructs a signal from a framed representation.
+
+    Adds potentially overlapping frames of a signal with shape
+    `[..., frames, frame_length]`, offsetting subsequent frames by `frame_step`.
+    The resulting tensor has shape `[..., output_size]` where
+
+        output_size = (frames - 1) * frame_step + frame_length
+
+    Args:
+        signal: A [..., frames, frame_length] Tensor. All dimensions may be unknown, and rank must be at least 2.
+        frame_step: An integer denoting overlap offsets. Must be less than or equal to frame_length.
+
+    Returns:
+        A Tensor with shape [..., output_size] containing the overlap-added frames of signal's inner-most two dimensions.
+        output_size = (frames - 1) * frame_step + frame_length
+
+    Based on https://github.com/tensorflow/tensorflow/blob/r1.12/tensorflow/contrib/signal/python/ops/reconstruction_ops.py
+    """
+    outer_dimensions = signal.size()[:-2]
+    frames, frame_length = signal.size()[-2:]
+
+    subframe_length = math.gcd(frame_length, frame_step)  # gcd=Greatest Common Divisor
+    subframe_step = frame_step // subframe_length
+    subframes_per_frame = frame_length // subframe_length
+    output_size = frame_step * (frames - 1) + frame_length
+    output_subframes = output_size // subframe_length
+
+    # print(subframe_length)
+    # print(signal.shape)
+    # print(outer_dimensions)
+    # subframe_signal = signal.view(*outer_dimensions, -1, subframe_length)
+    subframe_signal = signal.reshape(*outer_dimensions, -1, subframe_length)
+
+    frame = torch.arange(0, output_subframes).unfold(0, subframes_per_frame, subframe_step)
+    frame = signal.new_tensor(frame).long().to(subframe_signal.device)  # signal may in GPU or CPU
+    frame = frame.contiguous().view(-1)
+
+    result = signal.new_zeros(*outer_dimensions, output_subframes, subframe_length)
+    result.index_add_(-2, frame, subframe_signal)
+    result = result.view(*outer_dimensions, -1)
+    return result
 
 
 class Encoder(nn.Module):
@@ -173,8 +217,16 @@ class DPRNN(nn.Module):
 
 # base module for deep DPRNN
 class DPRNN_base(nn.Module):
-    def __init__(self, input_dim, feature_dim, hidden_dim, num_spk=2,
-                 layer=4, segment_size=100, bidirectional=True, rnn_type='LSTM'):
+    def __init__(self,
+                 input_dim,
+                 feature_dim,
+                 hidden_dim,
+                 num_spk=2,
+                 layer=4,
+                 segment_size=100,
+                 bidirectional=True, 
+                 rnn_type='LSTM'
+                ):
         super(DPRNN_base, self).__init__()
 
         self.input_dim = input_dim
@@ -191,9 +243,12 @@ class DPRNN_base(nn.Module):
         self.BN = nn.Conv1d(self.input_dim, self.feature_dim, 1, bias=False)
 
         # DPRNN model
-        self.DPRNN = DPRNN(rnn_type, self.feature_dim, self.hidden_dim,
-                                   self.feature_dim * self.num_spk,
-                                   num_layers=layer, bidirectional=bidirectional)
+        self.DPRNN = DPRNN(rnn_type,
+                           self.feature_dim,
+                           self.hidden_dim,
+                           self.feature_dim * self.num_spk,
+                           num_layers=layer,
+                           bidirectional=bidirectional)
 
     def pad_segment(self, input, segment_size):
         # input is the features: (B, N, T)
@@ -242,22 +297,6 @@ class DPRNN_base(nn.Module):
         return output.contiguous()  # B, N, T
 
     def forward(self, input):
-        pass
-
-# DPRNN for beamforming filter estimation
-class BF_module(DPRNN_base):
-    def __init__(self, *args, **kwargs):
-        super(BF_module, self).__init__(*args, **kwargs)
-
-        # gated output layer
-        self.output = nn.Sequential(nn.Conv1d(self.feature_dim, self.feature_dim, 1),
-                                    nn.Tanh()
-                                    )
-        self.output_gate = nn.Sequential(nn.Conv1d(self.feature_dim, self.feature_dim, 1),
-                                         nn.Sigmoid()
-                                         )
-
-    def forward(self, input):
         #input = input.to(device)
         # input: (B, E, T)
         batch_size, E, seq_length = input.shape
@@ -267,25 +306,35 @@ class BF_module(DPRNN_base):
         enc_segments, enc_rest = self.split_feature(enc_feature, self.segment_size)  # B, N, L, K: L is the segment_size
         #print('enc_segments.shape {}'.format(enc_segments.shape))
         # pass to DPRNN
-        output = self.DPRNN(enc_segments).view(batch_size * self.num_spk, self.feature_dim, self.segment_size,
-                                                   -1)  # B*nspk, N, L, K
+        output = self.DPRNN(enc_segments).view(batch_size * self.num_spk,
+                                               self.feature_dim,
+                                               self.segment_size,
+                                               -1)  # B*nspk, N, L, K
 
         # overlap-and-add of the outputs
         output = self.merge_feature(output, enc_rest)  # B*nspk, N, T
 
         # gated output layer for filter generation
-        bf_filter = self.output(output) * self.output_gate(output)  # B*nspk, K, T
-        bf_filter = bf_filter.transpose(1, 2).contiguous().view(batch_size, self.num_spk, -1,
-                                                                self.feature_dim)  # B, nspk, T, N
+        # bf_filter = self.output(output) * self.output_gate(output)  # B*nspk, K, T
+        output = output.transpose(1, 2).contiguous().view(batch_size,
+                                                          self.num_spk,
+                                                          -1,
+                                                          self.feature_dim)  # B, nspk, T, N
 
-        return bf_filter
+        return output
 
 
-# base module for FaSNet
-class FaSNet_base(nn.Module):
-    def __init__(self, enc_dim, feature_dim, hidden_dim, layer, segment_size=250,
-                 nspk=2, win_len=2):
-        super(FaSNet_base, self).__init__()
+
+class DPRNN_sep(nn.Module):
+    def __init__(self,
+                 enc_dim:int=256,
+                 feature_dim:int=64,
+                 hidden_dim:int=128,
+                 layer:int=6,
+                 segment_size=250,
+                 nspk=2,
+                 win_len=2) -> None:
+        super(DPRNN_sep, self).__init__()
 
         # parameters
         self.window = win_len
@@ -304,8 +353,13 @@ class FaSNet_base(nn.Module):
         #self.encoder = nn.Conv1d(1, self.enc_dim, self.feature_dim, bias=False)
         self.encoder = Encoder(win_len, enc_dim) # [B T]-->[B N L]
         self.enc_LN = nn.GroupNorm(1, self.enc_dim, eps=1e-8) # [B N L]-->[B N L]
-        self.separator = BF_module(self.enc_dim, self.feature_dim, self.hidden_dim,
-                                self.num_spk, self.layer, self.segment_size)
+        self.separator = DPRNN_base(self.enc_dim,
+                                    self.feature_dim,
+                                    self.hidden_dim,
+                                    self.num_spk,
+                                    self.layer,
+                                    self.segment_size)
+        
         # [B, N, L] -> [B, E, L]
         self.mask_conv1x1 = nn.Conv1d(self.feature_dim, self.enc_dim, 1, bias=False)
         self.decoder = Decoder(enc_dim, win_len)
@@ -333,6 +387,7 @@ class FaSNet_base(nn.Module):
         """
         # pass to a DPRNN
         #input = input.to(device)
+        input = input.squeeze(1)  # B, 1, T
         B, _ = input.size()
         # mixture, rest = self.pad_input(input, self.window)
         #print('mixture.shape {}'.format(mixture.shape))
@@ -357,3 +412,8 @@ class FaSNet_base(nn.Module):
 
         return est_source
 
+if __name__=="__main__":
+    x = torch.rand((4, 1, 16000))
+    model = DPRNN_sep(64, 32, 32, 4, 250, 2, 2)
+    y = model(x)
+    print(y.shape)
