@@ -109,8 +109,17 @@ class FreRadarSepaTrainer(FreTrainer):
     
 
 class TimeTrainer(Trainer):
-
-
+    
+    def save_wav(self, sample_id, **kwargs):
+        for key, audio in kwargs.items():
+            save_path = f"{sample_id}/{key}"
+            audio = audio.squeeze(0)
+            audio = audio.to(torch.float)
+            os.makedirs(os.path.join("result", save_path), exist_ok=True)
+            for i in range(audio.shape[0]):
+                temp_audio = audio[i].unsqueeze(0).cpu().detach()
+                torchaudio.save(os.path.join("result", save_path,f"{i}.wav"), temp_audio, 8000)
+    
     def process_data(self, batch_data):
         noisy = batch_data["mix"].to(self.args.device)
         clean = batch_data["clean"].to(self.args.device)
