@@ -3,7 +3,7 @@ import os
 from app import build_tester, build_trainer
 from config import *
 from data import *
-from model import ConvTasNet, DPRNN_sep, MossFormer, RadarMossFormer, bulid_model
+from model import bulid_model
 from utils import *
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -14,7 +14,6 @@ def main():
     args = args_dict(args)
     print(args.ex_name)
     print(vars(args))
-
     seed_init(1234)
     data_loader = build_dataloader(args)
     model = bulid_model(args)

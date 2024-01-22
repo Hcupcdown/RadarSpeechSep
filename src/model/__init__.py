@@ -2,6 +2,7 @@ from .ConvTasNet import ConvTasNet
 from .DPRNN import DPRNN_sep
 from .FusionNet import RadarMossFormer
 from .Mossformer import MossFormer
+from .RadioSES import RadioSES
 
 
 def bulid_model(args):
@@ -14,6 +15,8 @@ def bulid_model(args):
         model = MossFormer(speaker_num=args.dataset["mix_num"])
     elif args.model == 'RadarMossFormer':
         model = RadarMossFormer()
+    elif args.model == 'RadioSES':
+        model = RadioSES()
     else:
         raise NotImplementedError
     return model

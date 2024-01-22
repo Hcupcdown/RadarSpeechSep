@@ -1,1 +1,1 @@
-from .DPRNN import DPRNN_sep
+from .DPRNN import Decoder, DPRNN_base, DPRNN_sep, Encoder
