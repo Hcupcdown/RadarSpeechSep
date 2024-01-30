@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from einops import rearrange
 
 from ..Mossformer.mossformer import GLU, MossFormerBlock, ScaledSinuEmbedding
+from .cross_flash import CorssFLASHTransformer
 from .radar_net import RadarNet
 
 
@@ -58,6 +59,9 @@ class RadarMossFormer(nn.Module):
                                   out_channels=hidden_dim)
 
         self.select_glu = GLU(hidden_dim)
+        self.cross_flash = CorssFLASHTransformer(dim=hidden_dim,
+                                                 depth=4)
+        
         self.glu = GLU(hidden_dim)
         self.out_point_wise_conv = nn.Sequential(
             nn.Conv1d(hidden_dim, hidden_dim, kernel_size=1),
@@ -102,8 +106,10 @@ class RadarMossFormer(nn.Module):
 
         # split speaker
         x_split = self.select_glu(x_MFB_out, radar)
-        
         x_split = x_split.transpose(-1, -2) 
+        radar = radar.transpose(-1, -2)
+        x_split = self.cross_flash(x_split, radar)
+
         for i in range(self.MFB_num):
             x_split = getattr(self, f"2_MFB_{i}")(x_split)
         x_split = x_split.transpose(-1, -2)
