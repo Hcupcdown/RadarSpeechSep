@@ -48,7 +48,7 @@ class SeparDataset:
         self.radar = radar
         self.mix_type = mix_type
 
-        self.srr = 90.
+        self.srr = 80.
         if segment is not None:
             self.segment = int(segment  * sample_rate)
             self.radar_segment = int(self.segment // self.srr)
@@ -59,10 +59,8 @@ class SeparDataset:
 
         sound_len = clean.shape[-1]
         
-        #如果长度小于段长度，填充0
         if sound_len < self.segment:
             clean = F.pad(clean, (0, self.segment - sound_len))
-        #否则截取一段
         else:
             offset = random.randint(0, sound_len - self.segment)
             clean = clean[:, offset : offset+self.segment]
@@ -124,9 +122,13 @@ class SeparDataset:
 
             clean_out.append(clean)
         clean_out = torch.cat(clean_out, dim=0)
-        if self.radar:
-            radar_out = torch.cat(radar_out, dim=0)
         
+        if self.radar:
+            if radar.dim() == 2:
+                radar_out = torch.stack(radar_out, dim=0)
+            else:
+                radar_out = torch.cat(radar_out, dim=0)
+
         if self.segment is not None:
 
             return self._segment_batch(mix=mix_audio, clean=clean_out, radar=radar_out)
