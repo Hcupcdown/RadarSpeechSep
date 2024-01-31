@@ -1,0 +1,8 @@
+audio_enc_dim: 64
+radio_enc_dim: 16
+audio_layer: 2
+radio_layer: 2
+fusion_layer: 4
+audio_segment: 128
+radio_segment: 16
+win_len: 16

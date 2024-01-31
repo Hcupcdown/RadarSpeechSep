@@ -1,0 +1,6 @@
+in_dim: 1
+hidden_dim: 512
+kernel_size: 8
+stride: 4
+MFB_num: 4
+drop_out_rate: 0.1
