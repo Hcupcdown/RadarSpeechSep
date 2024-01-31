@@ -67,25 +67,6 @@ def seed_init(seed=100):
     os.environ['PYTHONHASHSEED']       = str(seed)  
 
 
-def args_dict(args):
-    """
-    Get your arguments and make dictionary.
-    If you add some arguments in the model, you should edit here also.
-    """
-    args.dataset_dir = {'train':args.train,'val':args.val,'test':args.test}
-    args.dataset = {'sample_rate':args.sample_rate,
-                    'segment':args.segment,
-                    'mix_num':args.mix_num,
-                    'dynamic_mix':args.dynamic_mix,
-                    'dynamic_speaker_num':args.dynamic_speaker_num,
-                    'pad_to_batch':args.pad_to_batch,
-                    'radar':args.radar,
-                    'mix_type':args.mix_type}
-
-    args.ex_name = os.getcwd().replace('\\','/').split('/')[-1]
-
-    return args
-
 def torch_sisdr(reference, estimation):
     reference_energy = torch.sum(reference ** 2, dim=-1, keepdims=True)
     optimal_scaling = torch.sum(reference * estimation, dim=-1, keepdims=True) / reference_energy
