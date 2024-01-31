@@ -9,9 +9,7 @@ from utils import *
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def main():
-    
-    args = get_config()
-    args = args_dict(args)
+    args = get_args_dict()
     print(args.ex_name)
     print(vars(args))
     seed_init(1234)

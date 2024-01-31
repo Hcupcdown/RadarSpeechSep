@@ -8,7 +8,7 @@ def build_trainer(args, model, data):
     timemodels = ['ConvTasNet', 'DPRNN', 'MossFormer']
     if args.model in timemodels:
         return TimeSepaTrainer(model, data, args)
-    elif args.model == 'RadarMossFormer':
+    elif args.model == 'RadarMossFormer' or args.model == 'RadioSES':
         return TimeRadarSepaTrainer(model, data, args)
     else:
         raise NotImplementedError

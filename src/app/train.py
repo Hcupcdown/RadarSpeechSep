@@ -53,8 +53,8 @@ class Trainer():
                 self.model.eval()
 
                 with torch.no_grad():
-                    val_loss, val_snr = 0,0#self.test_epoch(self.val_loader,
-                                            #                   epoch=epoch)
+                    val_loss, val_snr = self.test_epoch(self.val_loader,
+                                                        epoch=epoch)
 
                 self.log.add_scalar(cate="val",
                                     global_step = epoch//self.args.val_per_epoch,
@@ -111,7 +111,7 @@ class Trainer():
         self.log.add_audio(cate="train/mix",
                            global_step = epoch,
                            add_spec=True,
-                           noisy=batch_data["noisy"][0],
+                           noisy=batch_data["mix"][0],
                            )
         self.log.add_audio(cate="train/est",
                            global_step = epoch,

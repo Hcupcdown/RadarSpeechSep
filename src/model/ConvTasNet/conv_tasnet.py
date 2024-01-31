@@ -50,7 +50,17 @@ def overlap_and_add(signal, frame_step):
     return result
 
 class ConvTasNet(nn.Module):
-    def __init__(self, N=256, L=20, B=256, H=512, P=3, X=8, R=4, C=2, norm_type="gLN", causal=False,
+    def __init__(self,
+                 N=256,
+                 L=20,
+                 B=256,
+                 H=512,
+                 P=3,
+                 X=8,
+                 R=4,
+                 C=2,
+                 norm_type="gLN",
+                 causal=False,
                  mask_nonlinear='relu'):
         """
         Args:
