@@ -221,8 +221,8 @@ def build_dataloader(args, train = True):
                                  sample_rate= args.dataset['sample_rate'],
                                  dynamic_mix=False,
                                  radar=args.radar,
-                                 segment=args.dataset['segment'],
-                                 mix_num=args.dataset['mix_num'])
+                                 mix_num=args.dataset['mix_num'],
+                                 mix_type=args.dataset['mix_type'])
     
     val_loader    = DataLoader(val_dataset,
                                batch_size=1,

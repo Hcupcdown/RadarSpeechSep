@@ -108,17 +108,17 @@ class Trainer():
         est_audio_dict = {f"speaker{i}":est_audio[i] for i in range(clean_audio.shape[0])}
         clean_audio_dict = {f"speaker{i}":clean_audio[i] for i in range(clean_audio.shape[0])}
 
-        self.log.add_audio(cate="train/mix",
+        self.log.add_audio(cate="test/mix",
                            global_step = epoch,
                            add_spec=True,
                            noisy=batch_data["mix"][0],
                            )
-        self.log.add_audio(cate="train/est",
+        self.log.add_audio(cate="test/est",
                            global_step = epoch,
                            add_spec=True,
                            **est_audio_dict,
                            )
-        self.log.add_audio(cate="train/clean",
+        self.log.add_audio(cate="test/clean",
                            global_step = epoch,
                            add_spec=True,
                            **clean_audio_dict,

@@ -65,6 +65,8 @@ class Log():
         if add_spec:
             spec_imags = dict()
         for k, v in kwargs.items():
+            v_max = v.max()
+            v = v / (v_max + 1e-8)
             self.writer.add_audio(tag=f"{cate}/{k}_audio",
                                   snd_tensor=v,
                                   global_step=global_step,

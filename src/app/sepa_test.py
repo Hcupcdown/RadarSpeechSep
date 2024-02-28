@@ -219,27 +219,19 @@ class TimeRadarSepaTest(TimeRadarSepaTrainer):
         self.loss_fn = lambda x, y:-sisnr(x,y)
         self.args = args
     
-    def save_wav(self, save_path, audio):
-        audio = audio.squeeze(0)
-        audio = audio.to(torch.float)
-        os.makedirs(os.path.join("result", save_path), exist_ok=True)
-        print(audio.shape)
-        for i in range(audio.shape[0]):
-            temp_audio = audio[i].unsqueeze(0).cpu().detach()
-            torchaudio.save(os.path.join("result", save_path,f"{i}.wav"), temp_audio, 8000)
-    
     def test(self):
         data_loader = self.val_loader
         total_loss = 0
         total_snr = 0
         self.model.eval()
-        for i, batch_data in enumerate(tqdm(data_loader)):
-            loss, est_audio = self.run_batch(batch_data)
-            est_audio = est_audio / (1e-8+est_audio.max())
-            total_loss += loss["loss"].item()
-            clean_audio = batch_data["clean"]
-            noise_audio = batch_data["mix"]
-            self.save_wav(i, est_audio=est_audio,
-                          clean_audio=clean_audio,
-                          noise_audio=noise_audio)
+        with torch.no_grad():
+            for i, batch_data in enumerate(tqdm(data_loader)):
+                loss, est_audio = self.run_batch(batch_data)
+                est_audio = est_audio / (1e-8+est_audio.max())
+                total_loss += loss["loss"].item()
+                clean_audio = batch_data["clean"]
+                noise_audio = batch_data["mix"]
+                self.save_wav(i, est_audio=est_audio,
+                              clean_audio=clean_audio,
+                              noise_audio=noise_audio)
         return total_loss/(i+1), total_snr/(i+1)
