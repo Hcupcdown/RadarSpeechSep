@@ -140,45 +140,43 @@ class SeparDataset:
     
     def _getitem_dynamic(self, index):
 
-        sample_num = random.randint(2, self.mix_num)
         clean_out = []
-        radar_out = []
+        radar_out = [] if self.radar else None
 
-        for i in range(sample_num):
-            index = random.randint(0, len(self.sample_list)-1)
-            sample_file = self.sample_list[index]
-            speaker_id = random.randint(0, self.mix_num-1)
-            clean_file = os.path.join(self.dataset_dir,
-                                      "s{}".format(speaker_id+1),
-                                      sample_file)
-            
-            clean, _  = torchaudio.load(clean_file)
+        for speaker_id in range(self.mix_num):
+            sample_file = random.choice(self.sample_list)
+            clean_audio_file = os.path.join(self.dataset_dir, 
+                                            "s{}".format(speaker_id+1), sample_file)
+
+            clean, _ = torchaudio.load(clean_audio_file)
+
             if self.radar:
-                radar_file = os.path.join(self.dataset_dir,
+                radar_file = os.path.join(self.dataset_dir, 
                                           "s{}_radar".format(speaker_id+1),
                                           sample_file.replace(".wav", ".npy"))
-                radar = torch.tensor(np.load(radar_file), dtype = torch.float32)
-                clean, radar = self._segment(clean=clean, radar=radar)
+                radar = torch.tensor(np.load(radar_file),
+                                     dtype = torch.float32)
+
                 radar_out.append(radar)
-            else:
-                clean = self._segment(clean=clean)
 
             clean_out.append(clean)
-
-        clean_out = torch.cat(clean_out, dim=0)
-        mix_out = torch.sum(clean_out, dim=0, keepdim=True)
-        if self.radar:
-            radar_out = torch.cat(radar_out, dim=0)
-
-        if self.pad_to_batch and sample_num < self.mix_num:
-            clean_out = F.pad(clean_out, (0,0,0, self.mix_num - sample_num))
-            if self.radar:
-                radar_out = F.pad(radar_out, (0,0,0,0,0, self.mix_num - sample_num))
-
-        if self.radar:
-            return mix_out, clean_out, radar_out
         
-        return mix_out, clean_out
+        clean_out = torch.cat(clean_out, dim=0)
+        mix_audio = torch.sum(clean_out, dim=0)
+        if self.radar:
+            if radar.dim() == 2:
+                radar_out = torch.stack(radar_out, dim=0)
+            else:
+                radar_out = torch.cat(radar_out, dim=0)
+
+        if self.segment is not None:
+
+            return self._segment_batch(mix=mix_audio, clean=clean_out, radar=radar_out)
+        
+        if self.radar:
+            return mix_audio, clean_out, radar_out
+        else:
+            return mix_audio, clean_out
 
 
     def __getitem__(self, index):
