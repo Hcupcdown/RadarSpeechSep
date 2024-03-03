@@ -61,7 +61,10 @@ class RadarMossFormer(nn.Module):
         self.select_glu = GLU(hidden_dim)
         self.cross_flash = CorssFLASHTransformer(dim=hidden_dim,
                                                  depth=4)
-        
+        self.conv_fusion = nn.Sequential(
+            nn.Conv1d(hidden_dim*2, hidden_dim, kernel_size=1),
+            nn.ReLU()
+        )
         self.glu = GLU(hidden_dim)
         self.out_point_wise_conv = nn.Sequential(
             nn.Conv1d(hidden_dim, hidden_dim, kernel_size=1),
@@ -105,11 +108,14 @@ class RadarMossFormer(nn.Module):
         x_MFB_out = x_MFB_out.repeat_interleave(speaker_num, dim=0)
 
         # split speaker
-        x_split = self.select_glu(x_MFB_out, radar)
-        x_split = x_split.transpose(-1, -2) 
+        x_repeat = self.select_glu(x_MFB_out, radar)
+        x_split = x_repeat.transpose(-1, -2) 
         radar = radar.transpose(-1, -2)
         x_split = self.cross_flash(x_split, radar)
-
+        x_split = x_split.transpose(-1, -2)
+        x_split = self.conv_fusion(torch.cat([x_split, x_repeat], dim = 1))
+        x_split = x_split.transpose(-1, -2)
+        
         for i in range(self.MFB_num):
             x_split = getattr(self, f"2_MFB_{i}")(x_split)
         x_split = x_split.transpose(-1, -2)
