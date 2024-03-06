@@ -48,10 +48,10 @@ class SeparDataset:
         self.radar = radar
         self.mix_type = mix_type
 
-        self.srr = 80.
+        self.srr = 106.67
         if segment is not None:
             self.segment = int(segment  * sample_rate)
-            self.radar_segment = int(self.segment // self.srr)
+            self.radar_segment = int(self.segment / self.srr)
 
         self.sample_list = os.listdir(os.path.join(self.dataset_dir, self.mix_type))
 
@@ -88,13 +88,14 @@ class SeparDataset:
             clean = clean[:, offset: offset+self.segment]
         if not self.radar:
             return mix, clean
-        
         if radar.shape[-1] < self.radar_segment:
             radar = F.pad(radar, (0, self.radar_segment - radar.shape[-1]))
         else:
             radar_offset = int(offset/self.srr)
-            radar = radar[..., radar_offset : radar_offset + self.radar_segment]
-
+            end_index = min(radar.shape[-1]-1 , radar_offset + self.radar_segment)
+            radar = radar[..., radar_offset : end_index]
+            if self.radar_segment - radar.shape[-1] > 0:
+                radar = F.pad(radar, (0, self.radar_segment - radar.shape[-1]))
         return mix, clean, radar
         
     def _getitem_static(self, index):
@@ -149,7 +150,6 @@ class SeparDataset:
                                             "s{}".format(speaker_id+1), sample_file)
 
             clean, _ = torchaudio.load(clean_audio_file)
-
             if self.radar:
                 radar_file = os.path.join(self.dataset_dir, 
                                           "s{}_radar".format(speaker_id+1),
@@ -162,7 +162,7 @@ class SeparDataset:
             clean_out.append(clean)
         
         clean_out = torch.cat(clean_out, dim=0)
-        mix_audio = torch.sum(clean_out, dim=0)
+        mix_audio = torch.sum(clean_out, dim=0, keepdim=True)
         if self.radar:
             if radar.dim() == 2:
                 radar_out = torch.stack(radar_out, dim=0)
