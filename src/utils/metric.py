@@ -165,8 +165,8 @@ def lpcoeff(speech_frame, model_order):
 
 # ---------------------- Speech Quality Metric ----------------------------- #
 def PESQ(ref_wav, deg_wav):
-    rate = 16000 
-    return pesq(rate, ref_wav, deg_wav, 'wb')
+    rate = 8000 
+    return pesq(rate, ref_wav, deg_wav, 'nb')
 
 def SSNR(ref_wav, deg_wav, srate=16000, eps=1e-10):
     """ Segmental Signal-to-Noise Ratio Objective Speech Quality Measure

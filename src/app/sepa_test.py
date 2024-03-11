@@ -206,16 +206,17 @@ class TimeSepaTest(TimeSepaTrainer):
         total_loss = 0
         total_snr = 0
         self.model.eval()
-        for i, batch_data in enumerate(tqdm(data_loader)):
-            loss, est_audio = self.run_batch(batch_data)
-            est_audio = est_audio / (1e-8+est_audio.max())
-            total_loss += loss["loss"].item()
-            clean_audio = batch_data["clean"]
-            noise_audio = batch_data["mix"]
-            self.save_wav(i, est_audio=est_audio,
-                          clean_audio=clean_audio,
-                          noise_audio=noise_audio)
-            self.eval_composite(est_audio, clean_audio, self.test_metric)
+        with torch.no_grad():
+            for i, batch_data in enumerate(tqdm(data_loader)):
+                loss, est_audio = self.run_batch(batch_data)
+                total_loss += loss["loss"].item()
+                total_snr += loss["snr"].item()
+                clean_audio = batch_data["clean"]
+                noise_audio = batch_data["mix"]
+                self.save_wav(i, est_audio=est_audio,
+                              clean_audio=clean_audio,
+                              noise_audio=noise_audio)
+                self.eval_composite(est_audio.detach().cpu().numpy(), clean_audio.detach().cpu().numpy(), self.metric)
         print("avg loss: ", total_loss/(i+1))
         print("avg sisnr: ", total_snr/(i+1))
         for key in self.metric.keys():
@@ -238,20 +239,19 @@ class TimeRadarSepaTest(TimeRadarSepaTrainer):
         data_loader = self.val_loader
         total_loss = 0
         total_snr = 0
-        # self.model.eval()
+        self.model.eval()
         with torch.no_grad():
             for i, batch_data in enumerate(tqdm(data_loader)):
                 loss, est_audio = self.run_batch(batch_data)
                 est_audio = est_audio / (1e-8+est_audio.max())
                 total_loss += loss["loss"].item()
                 total_snr += loss["snr"].item()
-                print(loss["snr"].item())
                 clean_audio = batch_data["clean"]
                 noise_audio = batch_data["mix"]
                 self.save_wav(i, est_audio=est_audio,
                               clean_audio=clean_audio,
                               noise_audio=noise_audio)
-                self.eval_composite(est_audio, clean_audio, self.test_metric)
+                self.eval_composite(est_audio.detach().cpu().numpy(), clean_audio.detach().cpu().numpy(), self.metric)
         print("avg loss: ", total_loss/(i+1))
         print("avg sisnr: ", total_snr/(i+1))
         for key in self.metric.keys():
