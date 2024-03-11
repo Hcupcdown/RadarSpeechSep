@@ -9,7 +9,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 from utils import sound2stft, sound_normal, stft2sound
-from utils.metric import sisnr
+from utils.metric import eval_composite, get_stoi, sisnr
 from utils.separate_loss import SeparateLoss
 
 from .train import Trainer
@@ -109,7 +109,15 @@ class FreRadarSepaTrainer(FreTrainer):
     
 
 class TimeTrainer(Trainer):
-    
+
+    @staticmethod
+    def eval_composite(est_audio, clean_audio, metrics):
+
+        temp_metrics = eval_composite(clean_audio, est_audio)
+        for key in temp_metrics:
+            metrics[key] += temp_metrics[key]
+        metrics["stoi"] += get_stoi(clean_audio, est_audio, 8000)
+
     def save_wav(self, sample_id, **kwargs):
         for key, audio in kwargs.items():
             save_path = f"{sample_id}/{key}"
