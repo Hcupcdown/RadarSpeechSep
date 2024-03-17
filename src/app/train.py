@@ -12,21 +12,30 @@ class Trainer():
         self.args = args
         self.model = model.to(args.device)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), 
-                                          lr=args.learning_rate)
-        self.scheduler = ReduceLROnPlateau(self.optimizer, 
-                                           mode='min',
-                                           factor=0.5,
-                                           patience=2,
-                                           verbose=True)
-
         self.train_loader = data['train']
         self.val_loader = data['val']
         self.log = Log(args)
         self.device = args.device
         if args.checkpoint:
             self._load_checkpoint(args.model_path)
-    
+        
+        if args.freeze:
+            self._frzee_model_parameters()
+
+        self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
+                                          lr=args.learning_rate)
+        
+        self.scheduler = ReduceLROnPlateau(self.optimizer, 
+                                           mode='min',
+                                           factor=0.5,
+                                           patience=2,
+                                           verbose=True)
+    def _frzee_model_parameters(self):
+        for p_name, param in self.model.named_parameters():
+            if "MFB" in p_name and "radar_net" not in p_name:
+                param.requires_grad = False
+                print("freeze:", p_name)
+
     def _load_checkpoint(self, model_path):
         print("load checkpoint")
         checkpoint = torch.load(model_path)
