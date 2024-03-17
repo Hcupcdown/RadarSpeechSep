@@ -91,7 +91,7 @@ class RadioSES(nn.Module):
             torch.Tensor: Estimated source tensor of shape (B, nspk, T).
         """
         B, _, _ = audio.size()
-
+        radio = radio.unsqueeze(1)  # [B, L] -> [B, 1, L]
         # Radio
         radio = rearrange(radio, "B N L -> (B N) () L") # B, N, L --> B, L, N
         radio_feature = self.radio_encoder(radio) # B, N, L
@@ -107,11 +107,10 @@ class RadioSES(nn.Module):
         # fusion
         radio_feature = F.interpolate(radio_feature,
                                       size=audio_feature.size(-1)) # B, N, L
-
+        
         radio_feature = rearrange(radio_feature, "(B N) C L -> B (N C) L", B = B) # B, N, L
 
         fusion_feature = torch.cat([audio_feature, radio_feature], dim=1)
-        print(fusion_feature.shape)
         # separate
         score_ = self.fusion_dprnn(fusion_feature)  # B, nspk, T, N
         score_ = score_.view(B*self.num_spk, -1, self.fusion_dim).transpose(1, 2).contiguous()  # B*nspk, N, T
