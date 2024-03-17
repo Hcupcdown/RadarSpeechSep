@@ -21,7 +21,8 @@ class SeparDataset:
                  dynamic_speaker_num=False,
                  pad_to_batch=False,
                  radar=False,
-                 mix_type="mix_clean"
+                 mix_type="mix_clean",
+                 srr = 106.67
                 ):
         """
         Initialize the Dataset object.
@@ -48,7 +49,8 @@ class SeparDataset:
         self.radar = radar
         self.mix_type = mix_type
 
-        self.srr = 106.67
+        self.srr = srr
+        self.radar_patent = "s{}_radar" if self.srr == 106.67 else "s{}_radioses"
         if segment is not None:
             self.segment = int(segment  * sample_rate)
             self.radar_segment = int(self.segment / self.srr)
@@ -114,7 +116,7 @@ class SeparDataset:
 
             if self.radar:
                 radar_file = os.path.join(self.dataset_dir, 
-                                          "s{}_radar".format(speaker_id+1),
+                                          self.radar_patent.format(speaker_id+1),
                                           sample_file.replace(".wav", ".npy"))
                 radar = torch.tensor(np.load(radar_file),
                                      dtype = torch.float32)
@@ -210,17 +212,25 @@ def sound_collate_fn(batch):
 
 def build_dataloader(args, train = True):
 
-    if args.radar:
-        collate_fn = radar_collate_fn
+    if args.model == "RadioSES":
+        args.dataset["srr"] = 6.6667
     else:
-        collate_fn = sound_collate_fn
-        
+        args.dataset["srr"] = 106.67
+    
+    args.dataset["radar"] = False
+
+    collate_fn = sound_collate_fn
+    if "Radar" in args.model or "Radio" in args.model:
+        args.dataset["radar"] = True
+        collate_fn = radar_collate_fn
+
     val_dataset   = SeparDataset(args.dataset_dir['val'],
                                  sample_rate= args.dataset['sample_rate'],
                                  dynamic_mix=False,
-                                 radar=args.radar,
+                                 radar=args.dataset["radar"],
                                  mix_num=args.dataset['mix_num'],
-                                 mix_type=args.dataset['mix_type'])
+                                 mix_type=args.dataset['mix_type'],
+                                 srr = args.dataset["srr"])
     
     val_loader    = DataLoader(val_dataset,
                                batch_size=1,

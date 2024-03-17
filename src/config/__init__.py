@@ -22,7 +22,6 @@ def get_args_dict():
                     'dynamic_mix':args.dynamic_mix,
                     'dynamic_speaker_num':args.dynamic_speaker_num,
                     'pad_to_batch':args.pad_to_batch,
-                    'radar':args.radar,
                     'mix_type':args.mix_type}
 
     args.ex_name = os.getcwd().replace('\\','/').split('/')[-1]
