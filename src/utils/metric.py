@@ -59,7 +59,7 @@ def get_pesq(ref_sig, out_sig, sr):
     pesq_val = 0
     for i in range(len(ref_sig)):
         try:
-            temp = pesq(sr, ref_sig[i], out_sig[i], 'nb')
+            temp = pesq(sr, ref_sig[i], out_sig[i], 'wb')
         except:
             continue
         else:
