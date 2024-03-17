@@ -182,7 +182,7 @@ class TimeRadarSepaTrainer(TimeTrainer):
             "snr":snr
         }
 
-        return loss, est_audio
+        return loss, est_audio/(1e-8+est_audio.max())
     
 class TimeSepaTrainer(TimeTrainer):
     def __init__(self, model, data, args):
@@ -204,4 +204,4 @@ class TimeSepaTrainer(TimeTrainer):
             "loss":sep_loss,
             "snr":snr
         }
-        return loss, est_audio
+        return loss, est_audio/(1e-8+est_audio.max())
