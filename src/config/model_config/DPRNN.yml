@@ -1,6 +1,6 @@
-enc_dim: 256
+enc_dim: 64
 feature_dim: 64
 hidden_dim: 128
 layer: 6
-segment_size: 250
-win_len: 2
+segment_size: 128
+win_len: 16

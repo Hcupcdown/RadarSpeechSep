@@ -1,5 +1,5 @@
 in_dim: 1
-hidden_dim: 512
+hidden_dim: 256
 kernel_size: 8
 stride: 4
 MFB_num: 8
