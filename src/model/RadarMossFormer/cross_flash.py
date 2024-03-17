@@ -334,8 +334,7 @@ class CorssFLASHTransformer(nn.Module):
                                                 laplace_attn_fn = laplace_attn_fn) for _ in range(depth)])
 
         self.to_out = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.ReLU()
+            nn.LayerNorm(dim)
         )
 
     def forward(
