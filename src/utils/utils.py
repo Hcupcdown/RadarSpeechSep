@@ -1,11 +1,43 @@
 import os
 import random
+import subprocess
 from os.path import join as opj
 
 import numpy as np
 import torch
 import torch.nn as nn
 
+
+def get_gpu_memory_usage():
+    # 执行nvidia-smi命令获取GPU信息
+    try:
+        output = subprocess.check_output(['nvidia-smi',
+                                          '--query-gpu=memory.free,memory.total',
+                                          '--format=csv,nounits,noheader'])
+        # 解析输出
+        gpu_info = [x.split(',') for x in output.decode('utf-8').strip().split('\n')]
+        gpu_memory = [(i, int(x[0]), int(x[1])) for i, x in enumerate(gpu_info)]
+        min_gpu_id = max(gpu_memory, key=lambda x: x[1])[0]
+        if gpu_memory:
+            for (i, free, total) in gpu_memory:
+                print("GPU {}: Free Memory: {:.2f} GB, Total Memory: {:.2f} GB, Utilization: {:.2f}%".\
+                      format(i, free/1024, total/1024, 100 - 100.0 * free / total), end="")
+                if i == min_gpu_id:
+                    print("  <--- Max Free Memory GPU")
+                else:
+                    print()
+        return gpu_memory
+    except subprocess.CalledProcessError as e:
+        print("Error querying nvidia-smi: ", e.output)
+        return None
+
+"""get the GPU with the minimum memory usage"""
+def get_min_gpu_memory_usage():
+    gpu_memory = get_gpu_memory_usage()
+    if gpu_memory:
+        gpu_memory.sort(key=lambda x: x[1], reverse=True)
+        return gpu_memory[0][0]
+    return -1
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)

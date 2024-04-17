@@ -13,6 +13,9 @@ def main():
     print(args.ex_name)
     print(vars(args))
     seed_init(1234)
+    max_mem_gpu_id = get_min_gpu_memory_usage()
+    torch.cuda.set_device(max_mem_gpu_id)
+    args.device = torch.device("cuda:{}".format(max_mem_gpu_id))
     data_loader = build_dataloader(args)
     model = bulid_model(args)
     
